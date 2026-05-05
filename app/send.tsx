@@ -5,6 +5,9 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
+import { useWallet } from "../store/walletStore";
+import { balanceService } from "../services/balance.service";
+import { useEffect } from "react";
 
 type KeypadButtonProps = {
   val: string;
@@ -33,8 +36,53 @@ export default function SendScreen() {
     avatar: string;
   }>();
 
+  const { address } = useWallet();
   const [amount, setAmount] = useState("0");
+  const [selectedAsset, setSelectedAsset] = useState({
+    name: "Solana",
+    symbol: "SOL",
+    balance: "0.00",
+    icon: "https://cryptologos.cc/logos/solana-sol-logo.png",
+  });
+  const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
+  const [assets, setAssets] = useState([
+    {
+      name: "Solana",
+      symbol: "SOL",
+      balance: "0.00",
+      icon: "https://cryptologos.cc/logos/solana-sol-logo.png",
+    },
+    {
+      name: "Ethereum",
+      symbol: "ETH",
+      balance: "0.00",
+      icon: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+    },
+  ]);
   const router = useRouter();
+
+  useEffect(() => {
+    if (address) {
+      const fetchBalances = async () => {
+        const solBal = await balanceService.getSolBalance(address);
+        const ethBal = await balanceService.getEthBalance(address);
+
+        const newAssets = [
+          { ...assets[0], balance: solBal },
+          { ...assets[1], balance: ethBal },
+        ];
+        setAssets(newAssets);
+
+        // Update selected asset balance if it was default
+        if (selectedAsset.symbol === "SOL") {
+          setSelectedAsset(newAssets[0]);
+        } else {
+          setSelectedAsset(newAssets[1]);
+        }
+      };
+      fetchBalances();
+    }
+  }, [address]);
 
   const handleKeyPress = (val: string) => {
     if (val === "back") {
@@ -61,9 +109,62 @@ export default function SendScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            <Text className="text-white text-xl font-mySemiBold">Transfer</Text>
+
+            {/* Asset Selector */}
+            <TouchableOpacity
+              onPress={() => setIsAssetDropdownOpen(!isAssetDropdownOpen)}
+              className="flex-row items-center bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800"
+            >
+              <Image
+                source={{ uri: selectedAsset.icon }}
+                className="w-5 h-5 rounded-full mr-2"
+              />
+              <Text className="text-white font-myBold text-sm mr-2">
+                {selectedAsset.symbol}
+              </Text>
+              <Ionicons
+                name={isAssetDropdownOpen ? "chevron-up" : "chevron-down"}
+                size={14}
+                color="#A1A1AA"
+              />
+            </TouchableOpacity>
+
             <View className="w-12" />
           </View>
+
+          {/* Asset Dropdown Menu */}
+          {isAssetDropdownOpen && (
+            <View className="absolute top-20 left-1/2 -translate-x-1/2 w-64 bg-zinc-900 border border-zinc-800 rounded-3xl p-2 z-50 shadow-2xl">
+              {assets.map((asset) => (
+                <TouchableOpacity
+                  key={asset.symbol}
+                  onPress={() => {
+                    setSelectedAsset(asset);
+                    setIsAssetDropdownOpen(false);
+                  }}
+                  className={`flex-row items-center p-4 rounded-2xl ${selectedAsset.symbol === asset.symbol ? "bg-zinc-800" : ""}`}
+                >
+                  <Image
+                    source={{ uri: asset.icon }}
+                    className="w-8 h-8 rounded-full mr-4"
+                  />
+                  <View className="flex-1">
+                    <Text className="text-white font-myBold">{asset.name}</Text>
+                    <Text className="text-zinc-500 text-xs font-myMedium">
+                      {asset.balance} {asset.symbol} available
+                    </Text>
+                  </View>
+                  {selectedAsset.symbol === asset.symbol && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#A3E635"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <View className="items-center mt-2">
             <View className="bg-zinc-900/80 border border-zinc-800 rounded-full flex-row items-center p-1.5 pr-6">
@@ -128,7 +229,20 @@ export default function SendScreen() {
                   : "bg-zinc-900 border border-zinc-800")
               }
               onPress={() => {
-                if (amount !== "0") router.back();
+                if (amount !== "0") {
+                  router.push({
+                    pathname: "/payment-confirm",
+                    params: {
+                      amount,
+                      symbol: selectedAsset.symbol,
+                      assetName: selectedAsset.name,
+                      assetIcon: selectedAsset.icon,
+                      recipientName: name,
+                      recipientUsername: username,
+                      recipientAvatar: avatar,
+                    },
+                  });
+                }
               }}
             >
               <Text

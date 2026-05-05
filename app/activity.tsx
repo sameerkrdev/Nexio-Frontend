@@ -1,66 +1,177 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  ImageBackground,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { FloatingNav } from "../components/FloatingNav";
 
-export default function Activity() {
-  const transactions = [
-    { name: "Sent to Alex M.", time: "Today, 09:30 AM", amount: "-$120.00", icon: "arrow-up", color: "#EF4444", bg: "#451A1A" },
-    { name: "Received from Priya S.", time: "Yesterday, 07:45 PM", amount: "+₹8,450.00", icon: "arrow-down", color: "#10B981", bg: "#1A452F" },
-    { name: "Converted INR to USD", time: "Yesterday, 06:20 PM", amount: "-₹5,000.00", icon: "swap-horizontal", color: "#8B5CF6", bg: "#2E1A45" },
-    { name: "Added money to INR", time: "12 May 2025, 11:10 AM", amount: "+₹20,000.00", icon: "plus", color: "#10B981", bg: "#1A452F" },
-    { name: "Netflix Subscription", time: "10 May 2025, 08:00 PM", amount: "-₹799.00", icon: "minus", color: "#EF4444", bg: "#451A1A" },
-    { name: "Amazon Purchase", time: "08 May 2025, 02:30 PM", amount: "-₹1,250.00", icon: "cart", color: "#EF4444", bg: "#451A1A" },
-  ];
+const TRANSACTIONS = [
+  {
+    name: "Steam Purchase",
+    type: "Entertainment",
+    date: "Today, 14:32",
+    amount: "-$42.00",
+    color: "#3B82F6",
+    icon: "game-controller",
+  },
+  {
+    name: "PayPal Transfer",
+    type: "Income",
+    date: "Yesterday",
+    amount: "+$2,500.00",
+    color: "#10B981",
+    icon: "wallet",
+  },
+  {
+    name: "Spotify Premium",
+    type: "Subscription",
+    date: "Jun 21",
+    amount: "-$9.99",
+    color: "#1DB954",
+    icon: "musical-notes",
+  },
+  {
+    name: "Starbucks",
+    type: "Food & Drink",
+    date: "Jun 20",
+    amount: "-$5.40",
+    color: "#F59E0B",
+    icon: "cafe",
+  },
+  {
+    name: "Uber Rides",
+    type: "Transport",
+    date: "Jun 18",
+    amount: "-$24.50",
+    color: "#8B5CF6",
+    icon: "car",
+  },
+  {
+    name: "Salary Deposit",
+    type: "Income",
+    date: "Jun 15",
+    amount: "+$4,200.00",
+    color: "#10B981",
+    icon: "briefcase",
+  },
+  {
+    name: "Netflix",
+    type: "Subscription",
+    date: "Jun 12",
+    amount: "-$15.99",
+    color: "#EF4444",
+    icon: "tv",
+  },
+];
+
+export default function ActivityScreen() {
+  const router = useRouter();
+  const [filter, setFilter] = useState("All");
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1">
-        <View className="px-6 py-4 flex-row items-center justify-between">
-          <Text className="text-white text-3xl font-myBold">Activity</Text>
-          <TouchableOpacity className="w-10 h-10 rounded-full bg-zinc-900 items-center justify-center border border-zinc-800">
-            <Ionicons name="filter-outline" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} className="px-6 mt-4">
-          <View className="mb-32">
-            <Text className="text-zinc-500 font-myMedium mb-4 uppercase text-xs tracking-widest">Recent Transactions</Text>
-            {transactions.map((tx, i) => (
-              <View
-                key={i}
-                className="flex-row items-center bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50 mb-4"
-              >
-                <View
-                  className="w-12 h-12 rounded-full items-center justify-center mr-4"
-                  style={{ backgroundColor: tx.bg }}
-                >
-                  <MaterialCommunityIcons
-                    name={tx.icon as any}
-                    size={22}
-                    color={tx.color}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-white font-mySemiBold text-base">{tx.name}</Text>
-                  <Text className="text-zinc-500 text-xs mt-1">{tx.time}</Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-white font-myBold text-base">{tx.amount}</Text>
-                  <View className="bg-lime-400/10 px-2 py-1 rounded-md mt-1">
-                    <Text className="text-lime-400 text-[10px] font-myBold uppercase">Success</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1">
+          {/* Header */}
+          <View className="px-6 pt-6 pb-6 flex-row items-center justify-between">
+            <View>
+              <Text className="text-zinc-500 text-sm font-myMedium mb-1">
+                Total Spending
+              </Text>
+              <Text className="text-white text-3xl font-myMedium">
+                $1,432.80
+              </Text>
+            </View>
+            <TouchableOpacity className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
+              <Ionicons name="search" size={20} color="white" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
 
-        <FloatingNav />
-      </SafeAreaView>
+          {/* Filters */}
+          <View className="px-6 mb-6">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {["All", "Income", "Expenses", "Subscriptions"].map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setFilter(f)}
+                  className={`px-6 py-2.5 rounded-full mr-3 border ${
+                    filter === f
+                      ? "bg-white border-white"
+                      : "bg-[#121212] border-zinc-800"
+                  }`}
+                >
+                  <Text
+                    className={`font-myMedium text-sm ${
+                      filter === f ? "text-black" : "text-zinc-400"
+                    }`}
+                  >
+                    {f}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Transactions List */}
+          <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+            <View className="bg-[#121212] border rounded-t-[50px] pt-8 px-8 pb-48 border-t border-zinc-800/50 min-h-screen">
+              <Text className="text-white text-xl font-myMedium mb-8">
+                Recent Activity
+              </Text>
+
+              <View className="gap-y-6">
+                {TRANSACTIONS.map((tx, i) => (
+                  <TouchableOpacity key={i} className="flex-row items-center">
+                    <View
+                      style={{ backgroundColor: tx.color + "20" }}
+                      className="w-14 h-14 rounded-full items-center justify-center mr-4"
+                    >
+                      <Ionicons
+                        name={tx.icon as any}
+                        size={24}
+                        color={tx.color}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-white text-lg font-myMedium">
+                        {tx.name}
+                      </Text>
+                      <Text className="text-zinc-500 text-sm font-myRegular">
+                        {tx.type} • {tx.date}
+                      </Text>
+                    </View>
+                    <Text
+                      className={`text-lg font-myMedium ${
+                        tx.amount.startsWith("+")
+                          ? "text-green-500"
+                          : "text-white"
+                      }`}
+                    >
+                      {tx.amount}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Floating Navigation */}
+          <FloatingNav onProfilePress={() => router.push("/profile")} />
+        </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }

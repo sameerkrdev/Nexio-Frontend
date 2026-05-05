@@ -1,7 +1,7 @@
 import "react-native-get-random-values";
 import "react-native-url-polyfill/auto";
 import "../global.css";
-import { Stack, router } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import {
   Montserrat_400Regular,
   Montserrat_500Medium,
@@ -15,7 +15,50 @@ import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { getDappKeyPair, decryptPayload } from "../lib/phantom";
 import { setWalletData } from "../store/walletStore";
-import { AuthProvider } from "../contexts/AuthContext";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
+
+function InnerLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const isReady = useRef(false);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup =
+      segments[0] === "authentication" ||
+      segments[0] === "signup" ||
+      segments[0] === "otp" ||
+      segments[0] === "otp-login" ||
+      segments[0] === undefined || // index page
+      segments[0] === "(auth)";
+
+    if (isAuthenticated && inAuthGroup) {
+      // Redirect to home if already logged in and trying to access auth screens
+      router.replace("/home");
+    } else if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to onboarding if not logged in and trying to access protected screens
+      router.replace("/");
+    }
+  }, [isAuthenticated, segments, isLoading]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="authentication" />
+      <Stack.Screen name="signup" />
+      <Stack.Screen name="otp" />
+      <Stack.Screen name="otp-login" />
+      <Stack.Screen name="success-card" />
+      <Stack.Screen name="home" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="send" />
+      <Stack.Screen name="send-choice" />
+      <Stack.Screen name="search-user" />
+      <Stack.Screen name="payment-confirm" />
+    </Stack>
+  );
+}
 
 export default function Layout() {
   const [loaded] = useFonts({
@@ -25,11 +68,8 @@ export default function Layout() {
     Montserrat_700Bold,
   });
 
-  const isReady = useRef(false);
-
   useEffect(() => {
     if (!loaded) return;
-    isReady.current = true;
 
     Linking.getInitialURL().then((url) => {
       console.log("🧊 Cold-start URL:", url);
@@ -42,7 +82,7 @@ export default function Layout() {
     });
 
     return () => sub.remove();
-  }, [loaded]); // ← depend on loaded so router is ready
+  }, [loaded]);
 
   const processUrl = async (url: string) => {
     if (!url.includes("onConnect")) return;
@@ -98,17 +138,7 @@ export default function Layout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="authentication" />
-        <Stack.Screen name="signup" />
-        <Stack.Screen name="otp" />
-        <Stack.Screen name="otp-login" />
-        <Stack.Screen name="success-card" />
-        <Stack.Screen name="home" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="send" />
-      </Stack>
+      <InnerLayout />
     </AuthProvider>
   );
 }

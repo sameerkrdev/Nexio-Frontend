@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { FloatingNav } from "../components/FloatingNav";
 import { connectPhantom } from "../lib/phantom";
 import { useWallet } from "../store/walletStore";
@@ -56,8 +57,8 @@ export default function Profile() {
   // Show loading state while fetching user
   if (authLoading) {
     return (
-      <View className="flex-1 bg-[#0A0A0A] items-center justify-center">
-        <ActivityIndicator size="large" color="#a3e635" />
+      <View className="flex-1 bg-black items-center justify-center">
+        <ActivityIndicator size="large" color="#ffffff" />
         <Text className="text-zinc-400 font-myMedium mt-4">
           Loading profile...
         </Text>
@@ -66,13 +67,19 @@ export default function Profile() {
   }
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1">
         <ScrollView showsVerticalScrollIndicator={false} className="px-6">
           <View className="items-center mt-10">
             {/* Profile Picture */}
-            <View className="w-32 h-32 rounded-full border-4 border-lime-400 p-1">
+            <View className="w-32 h-32 rounded-full border-2 border-zinc-800 p-1">
               <View className="w-full h-full rounded-full overflow-hidden bg-zinc-800">
                 <Image
                   source={{
@@ -85,14 +92,14 @@ export default function Profile() {
 
             {/* Name */}
             <View className="items-center mt-6">
-              <Text className="text-white text-3xl font-myBold">
+              <Text className="text-white text-2xl font-myMedium">
                 {user?.name || "Guest User"}
               </Text>
-              <Text className="text-zinc-500 text-lg font-myMedium mt-1">
+              <Text className="text-zinc-500 text-base font-myRegular mt-1">
                 @{user?.username || "guest"}
               </Text>
               {user?.phoneNumber && (
-                <Text className="text-zinc-600 text-sm font-myMedium mt-1">
+                <Text className="text-zinc-600 text-sm font-myRegular mt-1">
                   {user.phoneNumber}
                 </Text>
               )}
@@ -100,42 +107,42 @@ export default function Profile() {
 
             {/* Wallet Card — shows after connecting */}
             {address ? (
-              <View className="w-full mt-8 bg-zinc-900 rounded-3xl border border-zinc-800 p-6">
+              <View className="w-full mt-8 bg-[#121212] rounded-[40px] border border-zinc-800/50 p-8 items-center">
                 {/* Connected badge */}
-                <View className="flex-row items-center mb-4">
-                  <View className="w-2 h-2 rounded-full bg-lime-400 mr-2" />
-                  <Text className="text-lime-400 text-xs font-myBold uppercase tracking-widest">
+                <View className="flex-row items-center justify-center mb-6">
+                  <View className="w-2 h-2 rounded-full bg-white mr-2" />
+                  <Text className="text-white text-[10px] font-myMedium uppercase tracking-widest">
                     Phantom Connected
                   </Text>
                 </View>
 
                 {/* Balance */}
-                <Text className="text-zinc-500 text-sm font-myMedium mb-1">
+                <Text className="text-zinc-500 text-xs font-myMedium mb-2 uppercase tracking-widest">
                   SOL Balance
                 </Text>
                 {loadingBalance ? (
-                  <ActivityIndicator color="#a3e635" />
+                  <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text className="text-white text-4xl font-myBold">
+                  <Text className="text-white text-3xl font-myMedium">
                     {balance !== null ? `${balance.toFixed(4)} SOL` : "—"}
                   </Text>
                 )}
 
                 {/* Wallet Address */}
-                <View className="mt-4 bg-zinc-800 rounded-2xl px-4 py-3 flex-row items-center justify-between">
+                <View className="mt-8 w-full bg-white/5 rounded-2xl px-4 py-4 flex-row items-center justify-between border border-white/5">
                   <Text className="text-zinc-400 text-sm font-myMedium">
                     {`${address.slice(0, 6)}...${address.slice(-6)}`}
                   </Text>
-                  <Ionicons name="copy-outline" size={16} color="#71717a" />
+                  <Ionicons name="copy-outline" size={16} color="#71717A" />
                 </View>
 
                 {/* Refresh */}
                 <TouchableOpacity
                   onPress={() => fetchBalance(address)}
-                  className="mt-4 flex-row items-center justify-center"
+                  className="mt-6 flex-row items-center justify-center bg-white/5 px-6 py-2.5 rounded-full border border-white/5"
                 >
-                  <Ionicons name="refresh-outline" size={16} color="#a3e635" />
-                  <Text className="text-lime-400 text-sm font-myMedium ml-2">
+                  <Ionicons name="refresh-outline" size={14} color="#ffffff" />
+                  <Text className="text-white text-xs font-myMedium ml-2">
                     Refresh Balance
                   </Text>
                 </TouchableOpacity>
@@ -143,21 +150,21 @@ export default function Profile() {
             ) : (
               /* Stats cards — shows before connecting */
               <View className="flex-row mt-10 gap-4">
-                <View className="flex-1 bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800 items-center">
-                  <Text className="text-zinc-500 text-xs font-myBold uppercase">
+                <View className="flex-1 bg-[#121212] p-5 rounded-[32px] border border-zinc-800/50 items-center">
+                  <Text className="text-zinc-500 text-[10px] font-myMedium uppercase tracking-widest">
                     Member Since
                   </Text>
-                  <Text className="text-white text-lg font-myBold mt-1">
+                  <Text className="text-white text-lg font-myMedium mt-1">
                     {user?.createdAt
                       ? new Date(user.createdAt).getFullYear()
                       : "2024"}
                   </Text>
                 </View>
-                <View className="flex-1 bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800 items-center">
-                  <Text className="text-zinc-500 text-xs font-myBold uppercase">
+                <View className="flex-1 bg-[#121212] p-5 rounded-[32px] border border-zinc-800/50 items-center">
+                  <Text className="text-zinc-500 text-[10px] font-myMedium uppercase tracking-widest">
                     Account Tier
                   </Text>
-                  <Text className="text-lime-400 text-lg font-myBold mt-1">
+                  <Text className="text-white text-lg font-myMedium mt-1">
                     Pro
                   </Text>
                 </View>
@@ -170,51 +177,51 @@ export default function Profile() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={connectPhantom}
-                className={`w-full py-5 rounded-3xl flex-row items-center justify-center ${
+                className={`w-full py-4 rounded-2xl flex-row items-center justify-center ${
                   address
-                    ? "bg-zinc-800 border border-[#AB9FF2]"
+                    ? "bg-[#121212] border border-[#AB9FF2]"
                     : "bg-[#AB9FF2]"
                 }`}
               >
-                <MaterialCommunityIcons
-                  name="wallet-outline"
-                  size={24}
+                <FontAwesome5
+                  name="ghost"
+                  size={20}
                   color={address ? "#AB9FF2" : "black"}
                 />
                 <Text
-                  className={`text-xl font-myBold ml-3 ${address ? "text-[#AB9FF2]" : "text-black"}`}
+                  className={`text-base font-myMedium ml-2 ${address ? "text-[#AB9FF2]" : "text-black"}`}
                 >
                   {address ? "Wallet Connected ✓" : "Link Phantom Wallet"}
                 </Text>
               </TouchableOpacity>
 
               {/* Settings */}
-              <TouchableOpacity className="w-full bg-zinc-900/80 py-5 px-6 rounded-3xl flex-row items-center justify-between border border-zinc-800">
+              <TouchableOpacity className="w-full bg-[#121212] py-5 px-6 rounded-[32px] flex-row items-center justify-between border border-zinc-800/50">
                 <View className="flex-row items-center">
-                  <View className="w-10 h-10 bg-blue-500/10 rounded-full items-center justify-center mr-4">
+                  <View className="w-10 h-10 bg-white/5 rounded-2xl items-center justify-center mr-4">
                     <Ionicons
                       name="settings-outline"
                       size={20}
-                      color="#3B82F6"
+                      color="#ffffff"
                     />
                   </View>
-                  <Text className="text-white text-lg font-mySemiBold">
+                  <Text className="text-white text-lg font-myMedium">
                     Account Settings
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#71717A" />
               </TouchableOpacity>
 
-              <TouchableOpacity className="w-full bg-zinc-900/80 py-5 px-6 rounded-3xl flex-row items-center justify-between border border-zinc-800">
+              <TouchableOpacity className="w-full bg-[#121212] py-5 px-6 rounded-[32px] flex-row items-center justify-between border border-zinc-800/50">
                 <View className="flex-row items-center">
-                  <View className="w-10 h-10 bg-orange-500/10 rounded-full items-center justify-center mr-4">
+                  <View className="w-10 h-10 bg-white/5 rounded-2xl items-center justify-center mr-4">
                     <Ionicons
                       name="shield-checkmark-outline"
                       size={20}
-                      color="#F59E0B"
+                      color="#ffffff"
                     />
                   </View>
-                  <Text className="text-white text-lg font-mySemiBold">
+                  <Text className="text-white text-lg font-myMedium">
                     Security & Privacy
                   </Text>
                 </View>
@@ -223,10 +230,10 @@ export default function Profile() {
 
               <TouchableOpacity
                 onPress={handleLogout}
-                className="w-full bg-zinc-900/80 py-5 px-6 rounded-3xl flex-row items-center justify-center border border-zinc-800 mt-4"
+                className="w-full bg-red-500 py-4 rounded-2xl flex-row items-center justify-center mt-2"
               >
-                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                <Text className="text-red-500 text-lg font-myBold ml-2">
+                <Ionicons name="log-out-outline" size={20} color="white" />
+                <Text className="text-white text-lg font-myMedium ml-2">
                   Logout
                 </Text>
               </TouchableOpacity>
@@ -236,6 +243,7 @@ export default function Profile() {
         </ScrollView>
         <FloatingNav />
       </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }

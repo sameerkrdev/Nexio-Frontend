@@ -6,7 +6,12 @@ import React, {
   ReactNode,
 } from "react";
 import { authService, User } from "../services/auth.service";
-import { isAuthenticated, clearTokens } from "../services/storage";
+import {
+  isAuthenticated,
+  clearTokens,
+  getStoredTokens,
+} from "../services/storage";
+import { useRouter } from "expo-router";
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const router = useRouter();
 
   // Check authentication status on mount
   useEffect(() => {
@@ -57,6 +63,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUser = async () => {
     try {
+      const tokens = await getStoredTokens();
+      if (!tokens?.accessToken) {
+        setUser(null);
+        setAuthenticated(false);
+        return;
+      }
+
       const userData = await authService.getMe();
       setUser(userData);
       setAuthenticated(true);
@@ -66,6 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await clearTokens();
       setUser(null);
       setAuthenticated(false);
+      // Redirect to login if session expired
+      router.replace("/");
     }
   };
 
