@@ -85,6 +85,9 @@ export default function HomeScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  // Get currency from user's wallet
+  const currency = user?.wallet?.currency || "USD";
+
   const handleVerifyPassword = async () => {
     if (!passwordInput || !user?.username) return;
     setIsVerifying(true);
@@ -100,9 +103,6 @@ export default function HomeScreen() {
       setIsVerifying(false);
     }
   };
-
-  const [currency, setCurrency] = useState("USD");
-  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (address) {
@@ -145,7 +145,7 @@ export default function HomeScreen() {
                       Hey,
                     </Text>
                     <Text className="text-white text-lg font-myMedium">
-                      Bruce Petit
+                      {user?.name}
                     </Text>
                   </View>
                 </View>
@@ -163,41 +163,16 @@ export default function HomeScreen() {
                   imageStyle={{ borderRadius: 32 }}
                   resizeMode="stretch"
                 >
-                  {/* Top Right: Currency Selector with Flags */}
+                  {/* Top Right: Currency Display */}
                   <View className="absolute top-6 right-6 z-50">
-                    <TouchableOpacity
-                      onPress={() =>
-                        setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)
-                      }
-                      className="bg-black/30 px-3 py-1.5 rounded-xl flex-row items-center border border-white/10"
-                    >
-                      <Text className="text-white text-xs font-myMedium mr-1">
-                        {currency === "USD" ? "🇺🇸 USD" : "🇮🇳 INR"}
+                    <View className="bg-black/30 px-3 py-1.5 rounded-xl flex-row items-center border border-white/10">
+                      <Text className="text-white text-xs font-myMedium">
+                        {currency === "INR" && "🇮🇳 INR"}
+                        {currency === "USD" && "🇺🇸 USD"}
+                        {currency === "JPY" && "🇯🇵 JPY"}
+                        {currency === "EUR" && "�� EUR"}
                       </Text>
-                      <Ionicons name="chevron-down" size={12} color="white" />
-                    </TouchableOpacity>
-
-                    {isCurrencyDropdownOpen && (
-                      <View className="absolute top-10 right-0 bg-zinc-900 rounded-xl p-1 border border-zinc-800 z-50 w-28">
-                        {[
-                          { code: "USD", flag: "🇺🇸" },
-                          { code: "INR", flag: "🇮🇳" },
-                        ].map((c) => (
-                          <TouchableOpacity
-                            key={c.code}
-                            onPress={() => {
-                              setCurrency(c.code);
-                              setIsCurrencyDropdownOpen(false);
-                            }}
-                            className={`p-2 rounded-lg flex-row items-center ${currency === c.code ? "bg-zinc-800" : ""}`}
-                          >
-                            <Text className="text-white text-xs font-myMedium">
-                              {c.flag} {c.code}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
+                    </View>
                   </View>
 
                   {/* Bottom Left: Balance and User Identity */}
@@ -209,7 +184,8 @@ export default function HomeScreen() {
                       </Text>
                       {isBalanceVisible ? (
                         <Text className="text-white text-3xl font-myMedium">
-                          {currency === "USD" ? "$218,000.00" : "₹1,82,45,000"}
+                          {user?.wallet?.currency === "USD" ? "$" : "₹"}{" "}
+                          {user?.wallet?.balance}
                         </Text>
                       ) : (
                         <TouchableOpacity
@@ -227,10 +203,10 @@ export default function HomeScreen() {
                     {/* User Info */}
                     <View>
                       <Text className="text-white text-lg font-myMedium">
-                        Bruce Petit
+                        {user?.name}
                       </Text>
                       <Text className="text-white/60 font-myRegular text-xs">
-                        @bruce_nexio
+                        {user?.username}
                       </Text>
                     </View>
                   </View>
@@ -339,15 +315,20 @@ export default function HomeScreen() {
                             if (user.id === "4") {
                               setIsSendDrawerOpen(true);
                             } else {
+                              const validUser = user as typeof MOCK_USERS[0];
                               router.push({
                                 pathname: "/send",
-                                params: user,
+                                params: {
+                                  name: validUser.name,
+                                  username: validUser.username,
+                                  avatar: validUser.avatar,
+                                },
                               });
                             }
                           }}
                         >
                           <View className="w-24 h-24 rounded-full border border-zinc-800 p-1 mb-2 items-center justify-center overflow-hidden">
-                            {user.isAdd ? (
+                            {"isAdd" in user && user.isAdd ? (
                               <View className="w-full h-full bg-zinc-900/80 items-center justify-center rounded-full">
                                 <Ionicons
                                   name="add"

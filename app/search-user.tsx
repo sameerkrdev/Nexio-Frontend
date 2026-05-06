@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,9 +13,24 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useWallet } from "../store/walletStore";
+import { userService } from "../services/user.service";
+
+interface SearchUser {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+}
+
+// Default avatars to use if user doesn't have one
+const DEFAULT_AVATARS = [
+  'https://img.freepik.com/free-vector/smiling-young-man-illustration_1308-173524.jpg',
+  'https://img.freepik.com/free-vector/mysterious-mafia-man-smoking-cigarette_52683-34828.jpg',
+  'https://img.freepik.com/free-vector/illustration-businessman_53876-5856.jpg'
+];
 
 // Mock data for initial view or results
-const MOCK_RESULTS = [
+const MOCK_RESULTS: SearchUser[] = [
   { id: '1', name: 'Alex M.', username: 'alex_m', avatar: 'https://img.freepik.com/free-vector/smiling-young-man-illustration_1308-173524.jpg' },
   { id: '2', name: 'Priya S.', username: 'priya23', avatar: 'https://img.freepik.com/free-vector/mysterious-mafia-man-smoking-cigarette_52683-34828.jpg' },
   { id: '3', name: 'Sarah T.', username: 'sarah_t', avatar: 'https://img.freepik.com/free-vector/illustration-businessman_53876-5856.jpg' },
@@ -25,24 +40,47 @@ export default function SearchUserScreen() {
   const { address } = useWallet();
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState(MOCK_RESULTS);
+  const [results, setResults] = useState<SearchUser[]>(MOCK_RESULTS);
   const [isWalletModalVisible, setIsWalletModalVisible] = useState(false);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
 
   const handleSearch = (text: string) => {
     setSearch(text);
+    
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
     if (text.length > 2) {
       setIsLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        const filtered = MOCK_RESULTS.filter(u => 
-          u.username.toLowerCase().includes(text.toLowerCase()) || 
-          u.name.toLowerCase().includes(text.toLowerCase())
-        );
-        setResults(filtered);
-        setIsLoading(false);
+      debounceTimer.current = setTimeout(async () => {
+        try {
+          const apiResults = await userService.searchUsers(text);
+          // Map backend users to UI expected format (adding mock avatars)
+          const formattedResults = apiResults.map((u, index) => ({
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            avatar: DEFAULT_AVATARS[index % DEFAULT_AVATARS.length],
+          }));
+          setResults(formattedResults);
+        } catch (error) {
+          console.error("Search failed:", error);
+          setResults([]);
+        } finally {
+          setIsLoading(false);
+        }
       }, 500);
-    } else if (text.length === 0) {
-      setResults(MOCK_RESULTS);
+    } else {
+      setResults(text.length === 0 ? MOCK_RESULTS : []);
+      setIsLoading(false);
     }
   };
 
@@ -103,7 +141,12 @@ export default function SearchUserScreen() {
                   } else {
                     router.push({
                       pathname: "/send",
-                      params: item,
+                      params: {
+                        id: item.id,
+                        name: item.name,
+                        username: item.username,
+                        avatar: item.avatar,
+                      },
                     });
                   }
                 }}

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image } from "react-native";
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useWallet } from "../store/walletStore";
+import { useAuth } from "../contexts/AuthContext";
 import { balanceService } from "../services/balance.service";
 import { useEffect } from "react";
 
@@ -37,6 +37,11 @@ export default function SendScreen() {
   }>();
 
   const { address } = useWallet();
+  const { user } = useAuth();
+  
+  const fiatCurrency = user?.wallet?.currency || "INR";
+  const fiatSymbol = fiatCurrency === "USD" ? "$" : fiatCurrency === "EUR" ? "€" : fiatCurrency === "JPY" ? "¥" : "₹";
+  
   const [amount, setAmount] = useState("0");
   const [selectedAsset, setSelectedAsset] = useState({
     name: "Solana",
@@ -53,10 +58,16 @@ export default function SendScreen() {
       icon: "https://cryptologos.cc/logos/solana-sol-logo.png",
     },
     {
-      name: "Ethereum",
-      symbol: "ETH",
+      name: "USD Coin",
+      symbol: "USDC",
       balance: "0.00",
-      icon: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+      icon: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
+    },
+    {
+      name: "Tether",
+      symbol: "USDT",
+      balance: "0.00",
+      icon: "https://cryptologos.cc/logos/tether-usdt-logo.png",
     },
   ]);
   const router = useRouter();
@@ -65,19 +76,12 @@ export default function SendScreen() {
     if (address) {
       const fetchBalances = async () => {
         const solBal = await balanceService.getSolBalance(address);
-        const ethBal = await balanceService.getEthBalance(address);
-
-        const newAssets = [
-          { ...assets[0], balance: solBal },
-          { ...assets[1], balance: ethBal },
-        ];
+        const newAssets = assets.map((a) =>
+          a.symbol === "SOL" ? { ...a, balance: solBal } : a
+        );
         setAssets(newAssets);
-
-        // Update selected asset balance if it was default
         if (selectedAsset.symbol === "SOL") {
           setSelectedAsset(newAssets[0]);
-        } else {
-          setSelectedAsset(newAssets[1]);
         }
       };
       fetchBalances();
@@ -97,6 +101,23 @@ export default function SendScreen() {
       setAmount((prev) => prev + val);
     }
   };
+
+  // Navigate to the review/confirmation screen — no backend call yet
+  const handleReview = () => {
+    if (amount === "0") return;
+    router.push({
+      pathname: "/payment-confirm",
+      params: {
+        fiatAmount: amount,
+        fiatCurrency,
+        currency: selectedAsset.symbol,
+        recipientUsername: username,
+        recipientName: name,
+        recipientAvatar: avatar,
+      },
+    });
+  };
+
   return (
     <View className="flex-1 bg-[#0A0A0A]">
       <StatusBar style="light" />
@@ -155,11 +176,7 @@ export default function SendScreen() {
                     </Text>
                   </View>
                   {selectedAsset.symbol === asset.symbol && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color="#A3E635"
-                    />
+                    <Ionicons name="checkmark-circle" size={20} color="#A3E635" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -188,11 +205,11 @@ export default function SendScreen() {
           <View className="flex-row items-center">
             <Text
               className={
-                "text-6xl font-myBold mr-2 " +
+                "text-5xl font-myBold mr-1 " +
                 (amount === "0" ? "text-zinc-800" : "text-lime-400")
               }
             >
-              $
+              {fiatSymbol}
             </Text>
             <Text
               className={
@@ -203,6 +220,14 @@ export default function SendScreen() {
               {amount}
             </Text>
           </View>
+          <Text className="text-zinc-600 text-xs font-myMedium mt-2">
+            Sending via {selectedAsset.name} ({selectedAsset.symbol})
+          </Text>
+          {amount !== "0" && (
+            <Text className="text-zinc-600 text-xs font-myMedium mt-1">
+              +0.5% service fee on next screen
+            </Text>
+          )}
         </View>
 
         <View className="pb-8">
@@ -210,7 +235,7 @@ export default function SendScreen() {
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map(
               (num) => (
                 <KeypadButton key={num} val={num} onPress={handleKeyPress} />
-              ),
+              )
             )}
             <KeypadButton
               val="back"
@@ -222,28 +247,14 @@ export default function SendScreen() {
           <View className="px-6">
             <TouchableOpacity
               activeOpacity={0.8}
+              disabled={amount === "0"}
               className={
                 "w-full py-5 rounded-3xl flex-row items-center justify-center " +
                 (amount !== "0"
                   ? "bg-[#A3E635]"
                   : "bg-zinc-900 border border-zinc-800")
               }
-              onPress={() => {
-                if (amount !== "0") {
-                  router.push({
-                    pathname: "/payment-confirm",
-                    params: {
-                      amount,
-                      symbol: selectedAsset.symbol,
-                      assetName: selectedAsset.name,
-                      assetIcon: selectedAsset.icon,
-                      recipientName: name,
-                      recipientUsername: username,
-                      recipientAvatar: avatar,
-                    },
-                  });
-                }
-              }}
+              onPress={handleReview}
             >
               <Text
                 className={
@@ -251,13 +262,13 @@ export default function SendScreen() {
                   (amount !== "0" ? "text-black" : "text-zinc-500")
                 }
               >
-                Send ${amount}
+                Review Payment
               </Text>
-              {amount !== "0" ? (
+              {amount !== "0" && (
                 <View className="ml-2">
                   <Ionicons name="arrow-forward" size={20} color="black" />
                 </View>
-              ) : null}
+              )}
             </TouchableOpacity>
           </View>
         </View>

@@ -101,6 +101,29 @@ class ApiClient {
       body: JSON.stringify(body),
     });
   }
+  async patch<T>(
+    endpoint: string,
+    body?: any,
+    authenticated = false,
+    additionalHeaders?: Record<string, string>,
+  ): Promise<ApiResponse<T>> {
+    const headers: Record<string, string> = additionalHeaders
+      ? { ...additionalHeaders }
+      : {};
+
+    if (authenticated) {
+      const tokens = await getStoredTokens();
+      if (tokens?.accessToken) {
+        headers["Authorization"] = `Bearer ${tokens.accessToken}`;
+      }
+    }
+
+    return this.request<T>(endpoint, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

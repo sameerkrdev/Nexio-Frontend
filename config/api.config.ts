@@ -8,8 +8,9 @@
  * - Production: https://your-production-api.com/api/v1
  */
 
-// For Physical Device (your current IP)
-export const API_BASE_URL = "http://192.168.0.116:3000/api/v1";
+// For Physical Device / Devtunnels
+// export const API_BASE_URL = "http://192.168.0.116:3000/api/v1";
+export const API_BASE_URL = "https://cb65fn7x-3000.inc1.devtunnels.ms/api/v1";
 
 // For iOS Simulator
 // export const API_BASE_URL = "http://localhost:3000/api/v1";

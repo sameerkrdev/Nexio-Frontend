@@ -21,7 +21,13 @@ export interface User {
   username: string;
   name: string;
   phoneNumber: string;
+  email: string | null;
+  solanaPublicKey: string | null;
   createdAt: string;
+  wallet: {
+    balance: string;
+    currency: string;
+  } | null;
 }
 
 export interface SendOtpRequest {

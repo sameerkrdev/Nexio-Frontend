@@ -13,10 +13,15 @@ import { useEffect, useRef } from "react";
 import * as Linking from "expo-linking";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
+import { Connection } from "@solana/web3.js";
 import { getDappKeyPair, decryptPayload } from "../lib/phantom";
-import { setWalletData } from "../store/walletStore";
+import { setWalletData, getSharedSecret } from "../store/walletStore";
+import { getPendingPayment, clearPendingPayment } from "../store/pendingPaymentStore";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 
+const SOLANA_RPC = "https://api.devnet.solana.com";
+
+// ─── Route guard component ────────────────────────────────────────────────────
 function InnerLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
@@ -24,6 +29,9 @@ function InnerLayout() {
 
   useEffect(() => {
     if (isLoading) return;
+
+    // success-card is a transient post-signup screen — skip the guard entirely
+    if (segments[0] === "success-card") return;
 
     const inAuthGroup =
       segments[0] === "authentication" ||
@@ -34,10 +42,8 @@ function InnerLayout() {
       segments[0] === "(auth)";
 
     if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if already logged in and trying to access auth screens
       router.replace("/home");
     } else if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to onboarding if not logged in and trying to access protected screens
       router.replace("/");
     }
   }, [isAuthenticated, segments, isLoading]);
@@ -56,10 +62,12 @@ function InnerLayout() {
       <Stack.Screen name="send-choice" />
       <Stack.Screen name="search-user" />
       <Stack.Screen name="payment-confirm" />
+      <Stack.Screen name="payment-success" />
     </Stack>
   );
 }
 
+// ─── Root layout — handles deep links from Phantom ───────────────────────────
 export default function Layout() {
   const [loaded] = useFonts({
     Montserrat_400Regular,
@@ -72,12 +80,10 @@ export default function Layout() {
     if (!loaded) return;
 
     Linking.getInitialURL().then((url) => {
-      console.log("🧊 Cold-start URL:", url);
       if (url) processUrl(url);
     });
 
     const sub = Linking.addEventListener("url", ({ url }) => {
-      console.log("🔥 Incoming URL:", url);
       processUrl(url);
     });
 
@@ -85,52 +91,94 @@ export default function Layout() {
   }, [loaded]);
 
   const processUrl = async (url: string) => {
-    if (!url.includes("onConnect")) return;
+    // ─── Phantom → onConnect ──────────────────────────────────────
+    if (url.includes("onConnect")) {
+      const { queryParams } = Linking.parse(url);
 
-    console.log("📥 Processing:", url);
+      if (!queryParams?.phantom_encryption_public_key) {
+        if (queryParams?.errorCode) {
+          console.log("❌ Phantom connect error:", queryParams.errorCode);
+        }
+        return;
+      }
 
-    const { queryParams } = Linking.parse(url);
-
-    if (!queryParams?.phantom_encryption_public_key) {
-      if (queryParams?.errorCode) {
-        console.log(
-          "❌ Phantom error:",
-          queryParams.errorCode,
-          queryParams.errorMessage,
+      try {
+        const keyPair = await getDappKeyPair();
+        const phantomKey = bs58.decode(
+          queryParams.phantom_encryption_public_key as string
         );
+        const secret = nacl.box.before(phantomKey, keyPair.secretKey);
+        const payload = decryptPayload(
+          queryParams.data as string,
+          queryParams.nonce as string,
+          secret
+        );
+
+        setWalletData({
+          address: payload.public_key,
+          phantomKey,
+          secret,
+          session: payload.session,
+        });
+
+        setTimeout(() => {
+          router.replace("/profile");
+        }, 200);
+      } catch (e) {
+        console.error("❌ Phantom connect failed:", e);
       }
       return;
     }
 
-    try {
-      const keyPair = await getDappKeyPair();
-      const phantomKey = bs58.decode(
-        queryParams.phantom_encryption_public_key as string,
-      );
-      const secret = nacl.box.before(phantomKey, keyPair.secretKey);
-      const payload = decryptPayload(
-        queryParams.data as string,
-        queryParams.nonce as string,
-        secret,
-      );
+    // ─── Phantom → onSignTransaction ─────────────────────────────
+    if (url.includes("onSignTransaction")) {
+      const { queryParams } = Linking.parse(url);
 
-      console.log("✅ Payload:", payload);
+      if (queryParams?.errorCode) {
+        console.log("❌ Phantom sign rejected:", queryParams.errorCode);
+        router.back();
+        return;
+      }
 
-      setWalletData({
-        address: payload.public_key,
-        phantomKey,
-        secret,
-        session: payload.session,
-      });
+      try {
+        const sharedSecret = getSharedSecret();
+        if (!sharedSecret) throw new Error("No shared secret — reconnect Phantom");
 
-      console.log("✅ Wallet set, navigating...");
+        const decrypted = decryptPayload(
+          queryParams!.data as string,
+          queryParams!.nonce as string,
+          sharedSecret
+        );
 
-      // Give router a tick to be fully ready
-      setTimeout(() => {
-        router.replace("/profile");
-      }, 200);
-    } catch (e) {
-      console.error("❌ Phantom connect failed:", e);
+        // Signed tx comes back in base58 — decode to bytes
+        const signedTxBytes = bs58.decode(decrypted.transaction);
+
+        // Broadcast to Solana network
+        const connection = new Connection(SOLANA_RPC, "confirmed");
+        const txHash = await connection.sendRawTransaction(signedTxBytes, {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+        });
+
+        console.log("✅ Transaction broadcast:", txHash);
+
+        const { paymentId, recipientUsername, currency } = getPendingPayment();
+        clearPendingPayment();
+
+        router.replace({
+          pathname: "/payment-success",
+          params: {
+            paymentId: paymentId ?? "",
+            txHash,
+            recipientUsername: recipientUsername ?? "",
+            currency: currency ?? "",
+          },
+        });
+      } catch (e) {
+        console.error("❌ Broadcast failed:", e);
+        router.back();
+      }
+      return;
     }
   };
 

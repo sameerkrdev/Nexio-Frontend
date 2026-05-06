@@ -21,6 +21,14 @@ export const setWalletData = (data: {
   notify();
 };
 
+export const clearWalletData = () => {
+  walletAddress = null;
+  phantomPublicKey = null;
+  sharedSecret = null;
+  session = null;
+  notify();
+};
+
 export const getWalletAddress = () => walletAddress;
 export const getSharedSecret = () => sharedSecret;
 export const getSession = () => session;

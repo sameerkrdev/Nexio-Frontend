@@ -12,6 +12,7 @@ import {
   getStoredTokens,
 } from "../services/storage";
 import { useRouter } from "expo-router";
+import { clearWalletData } from "../store/walletStore";
 
 interface AuthContextType {
   user: User | null;
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const userData = await authService.getMe();
+      // console.log(userData);
       setUser(userData);
       setAuthenticated(true);
     } catch (error) {
@@ -131,6 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await authService.logout();
       setUser(null);
       setAuthenticated(false);
+      clearWalletData();
     } catch (error) {
       console.error("Logout error:", error);
       throw error;

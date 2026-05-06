@@ -40,6 +40,47 @@ export const connectPhantom = async () => {
   Linking.openURL(url);
 };
 
+/**
+ * Send an unsigned transaction (base64) to Phantom for signing.
+ * Phantom redirects back to `onSignTransaction` with the signed tx.
+ * @param transactionBase64 - the backend-returned base64 unsigned transaction
+ * @param session - the session token from the wallet store
+ * @param sharedSecret - the shared secret from the wallet store
+ */
+export const signTransactionWithPhantom = async (
+  transactionBase64: string,
+  session: string,
+  sharedSecret: Uint8Array
+) => {
+  const keyPair = await getDappKeyPair();
+  const redirectUrl = Linking.createURL("onSignTransaction");
+
+  // Backend returns base64 — decode to bytes without Buffer (not available in RN)
+  const binaryStr = atob(transactionBase64);
+  const txBytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    txBytes[i] = binaryStr.charCodeAt(i);
+  }
+  const txBase58 = bs58.encode(txBytes);
+
+  const payload = JSON.stringify({ transaction: txBase58, session });
+
+  // Encode string to bytes using TextEncoder instead of Buffer
+  const payloadBytes = new TextEncoder().encode(payload);
+  const nonce = nacl.randomBytes(24);
+  const encryptedPayload = nacl.box.after(payloadBytes, nonce, sharedSecret);
+
+  const params = new URLSearchParams({
+    dapp_encryption_public_key: bs58.encode(keyPair.publicKey),
+    nonce: bs58.encode(nonce),
+    redirect_link: redirectUrl,
+    payload: bs58.encode(encryptedPayload),
+  });
+
+  const url = `https://phantom.app/ul/v1/signTransaction?${params.toString()}`;
+  Linking.openURL(url);
+};
+
 export const decryptPayload = (
   data: string,
   nonce: string,

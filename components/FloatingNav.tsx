@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 
 interface FloatingNavProps {
-  onProfilePress: () => void;
+  onProfilePress?: () => void;
 }
 
 export const FloatingNav: React.FC<FloatingNavProps> = ({ onProfilePress }) => {

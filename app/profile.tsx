@@ -18,11 +18,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { router } from "expo-router";
 
+import { userService } from "../services/user.service";
+
 const connection = new Connection("https://api.devnet.solana.com");
 
 export default function Profile() {
   const { address } = useWallet();
-  const { user, logout, isLoading: authLoading } = useAuth();
+  const { user, logout, isLoading: authLoading, refreshUser } = useAuth();
 
   const [balance, setBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
@@ -30,7 +32,21 @@ export default function Profile() {
   useEffect(() => {
     if (!address) return;
     fetchBalance(address);
-  }, [address]);
+
+    if (user && user.solanaPublicKey !== address) {
+      linkWallet(address);
+    }
+  }, [address, user]);
+
+  const linkWallet = async (addr: string) => {
+    try {
+      await userService.patchMyWallet(addr);
+      await refreshUser();
+      console.log("Wallet linked successfully on backend!");
+    } catch (e) {
+      console.error("Failed to link wallet to backend", e);
+    }
+  };
 
   const fetchBalance = async (addr: string) => {
     try {
