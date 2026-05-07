@@ -13,13 +13,14 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import Animated, { FadeInUp } from "react-native-reanimated";
-import { paymentService, type Currency } from "../services/payment.service";
+import {
+  paymentService,
+  type Currency,
+  type PaymentQuote,
+} from "../services/payment.service";
 import { signTransactionWithPhantom } from "../lib/phantom";
-import { getSession, getSharedSecret } from "../store/walletStore";
+import { getSession, getSharedSecret, useWallet } from "../store/walletStore";
 import { setPendingPayment } from "../store/pendingPaymentStore";
-
-// 0.5% service fee — mirrors SERVICE_FEE_PERCENT on the backend
-const SERVICE_FEE_PERCENT = 0.005;
 
 const TOKEN_ICONS: Record<string, string> = {
   SOL: "https://cryptologos.cc/logos/solana-sol-logo.png",
@@ -28,56 +29,71 @@ const TOKEN_ICONS: Record<string, string> = {
   LINK: "https://cryptologos.cc/logos/chainlink-link-logo.png",
 };
 
-const COINGECKO_IDS: Record<string, string> = {
-  SOL: "solana",
-  USDC: "usd-coin",
-  USDT: "tether",
-  LINK: "chainlink",
-};
-
 export default function PaymentConfirm() {
-  const { fiatAmount, fiatCurrency, currency, recipientUsername, recipientName, recipientAvatar } =
-    useLocalSearchParams<{
-      fiatAmount: string;
-      fiatCurrency: string;
-      currency: string;
-      recipientUsername: string;
-      recipientName: string;
-      recipientAvatar: string;
-    }>();
+  const {
+    fiatAmount,
+    fiatCurrency,
+    currency,
+    recipientUsername,
+    recipientName,
+    recipientAvatar,
+  } = useLocalSearchParams<{
+    fiatAmount: string;
+    fiatCurrency: string;
+    currency: string;
+    recipientUsername: string;
+    recipientName: string;
+    recipientAvatar: string;
+  }>();
 
+  const { address } = useWallet(); // Call the hook at component level
   const [isSending, setIsSending] = useState(false);
-  const [fiatRate, setFiatRate] = useState<number | null>(null);
+  const [quote, setQuote] = useState<PaymentQuote | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(true);
 
   const baseFiat = parseFloat(fiatAmount ?? "0");
-  const fiatFee = baseFiat * SERVICE_FEE_PERCENT;
+  const platformFeePercent = quote ? parseFloat(quote.platformFeePercent) : 1.5;
+  const fiatFee = (baseFiat * platformFeePercent) / 100;
   const totalFiat = baseFiat + fiatFee;
 
-  const fiatSymbol = fiatCurrency === "USD" ? "$" : fiatCurrency === "EUR" ? "€" : fiatCurrency === "JPY" ? "¥" : "₹";
+  const fiatSymbol =
+    fiatCurrency === "USD"
+      ? "$"
+      : fiatCurrency === "EUR"
+        ? "€"
+        : fiatCurrency === "JPY"
+          ? "¥"
+          : "₹";
 
   const toCryptoStr = (val: number): string => {
-    if (!fiatRate) return "";
-    return `≈ ${(val / fiatRate).toFixed(6)} ${currency}`;
+    if (!quote) return "";
+    const rate = parseFloat(quote.cryptoPriceInSenderCurrency);
+    return `≈ ${(val / rate).toFixed(6)} ${currency}`;
   };
 
-  // Fetch live rate from CoinGecko
+  // Fetch quote from backend (includes live rate from CoinGecko)
   useEffect(() => {
-    const coinId = COINGECKO_IDS[currency ?? "SOL"];
-    const targetCurrency = (fiatCurrency || "inr").toLowerCase();
-    if (!coinId) return;
+    const fetchQuote = async () => {
+      try {
+        setIsLoadingQuote(true);
+        const quoteData = await paymentService.getQuote(
+          recipientUsername,
+          currency as Currency,
+          fiatCurrency || "INR",
+        );
+        setQuote(quoteData);
+      } catch (error: any) {
+        Alert.alert(
+          "Rate Fetch Error",
+          error?.message ?? "Failed to fetch live rates. Please try again.",
+        );
+      } finally {
+        setIsLoadingQuote(false);
+      }
+    };
 
-    fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=${targetCurrency}`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        const rate = data?.[coinId]?.[targetCurrency];
-        if (rate) setFiatRate(rate);
-      })
-      .catch(() => {
-        // silently fail
-      });
-  }, [currency, fiatCurrency]);
+    fetchQuote();
+  }, [currency, fiatCurrency, recipientUsername]);
 
   const handleConfirm = async () => {
     if (isSending) return;
@@ -85,38 +101,52 @@ export default function PaymentConfirm() {
     const session = getSession();
     const sharedSecret = getSharedSecret();
 
-    if (!session || !sharedSecret) {
+    if (!session || !sharedSecret || !address) {
       Alert.alert(
         "Wallet not connected",
-        "Please connect your Phantom wallet from the Profile screen first."
+        "Please connect your Phantom wallet from the Profile screen first.",
       );
       return;
     }
 
-    if (!fiatRate) {
-      Alert.alert("Fetching rates", "Please wait for live rates to load before confirming.");
+    if (!quote) {
+      Alert.alert(
+        "Fetching rates",
+        "Please wait for live rates to load before confirming.",
+      );
       return;
     }
 
     setIsSending(true);
     try {
-      const cryptoAmount = (baseFiat / fiatRate).toFixed(6);
+      const cryptoRate = parseFloat(quote.cryptoPriceInSenderCurrency);
 
-      // Step 1: Create the payment intent on backend
-      const intent = await paymentService.createPayment(
+      // Step 1: Create the payment intent on backend with all required parameters
+      const intent = await paymentService.createPayment({
         recipientUsername,
-        cryptoAmount,
-        currency as Currency
-      );
+        senderCurrencyAmount: baseFiat.toFixed(2),
+        senderCurrency: quote.senderCurrency,
+        receiverCurrency: quote.receiverCurrency,
+        cryptoType: currency as Currency,
+        cryptoToSenderRate: cryptoRate,
+        platformFeePercent: quote.platformFeePercent,
+      });
 
       // Step 2: Store paymentId so _layout.tsx can retrieve it after Phantom redirect
       setPendingPayment(intent.paymentId, recipientUsername, currency);
 
       // Step 3: Open Phantom for signing — app goes to background
       // _layout.tsx handles the onSignTransaction redirect → payment-success
-      await signTransactionWithPhantom(intent.transaction, session, sharedSecret);
+      await signTransactionWithPhantom(
+        intent.transaction,
+        session,
+        sharedSecret,
+      );
     } catch (e: any) {
-      Alert.alert("Payment Error", e?.message ?? "Something went wrong. Please try again.");
+      Alert.alert(
+        "Payment Error",
+        e?.message ?? "Something went wrong. Please try again.",
+      );
       setIsSending(false);
     }
   };
@@ -132,9 +162,15 @@ export default function PaymentConfirm() {
             disabled={isSending}
             className="w-12 h-12 rounded-full bg-zinc-900 items-center justify-center border border-zinc-800"
           >
-            <Ionicons name="arrow-back" size={24} color={isSending ? "#3F3F46" : "white"} />
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color={isSending ? "#3F3F46" : "white"}
+            />
           </TouchableOpacity>
-          <Text className="text-white text-xl font-myBold ml-5">Review Payment</Text>
+          <Text className="text-white text-xl font-myBold ml-5">
+            Review Payment
+          </Text>
         </View>
 
         <ScrollView
@@ -154,7 +190,9 @@ export default function PaymentConfirm() {
               }}
               className="w-20 h-20 rounded-full border-2 border-lime-400 mb-4"
             />
-            <Text className="text-white text-2xl font-myBold">{recipientName}</Text>
+            <Text className="text-white text-2xl font-myBold">
+              {recipientName}
+            </Text>
             <Text className="text-zinc-500 font-myMedium mt-1 text-base">
               @{recipientUsername}
             </Text>
@@ -182,7 +220,7 @@ export default function PaymentConfirm() {
               sub={toCryptoStr(baseFiat)}
             />
             <FeeRow
-              label="Service fee (0.5%)"
+              label={`Service fee (${platformFeePercent.toFixed(1)}%)`}
               value={`${fiatSymbol}${fiatFee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               sub={toCryptoStr(fiatFee)}
             />
@@ -202,18 +240,29 @@ export default function PaymentConfirm() {
             />
 
             {/* Live rate badge */}
-            {fiatRate ? (
+            {quote ? (
               <View className="mt-5 bg-zinc-800/60 rounded-2xl px-4 py-3 flex-row items-center justify-center">
-                <Ionicons name="trending-up-outline" size={14} color="#71717A" />
+                <Ionicons
+                  name="trending-up-outline"
+                  size={14}
+                  color="#71717A"
+                />
                 <Text className="text-zinc-500 text-xs font-myMedium ml-2">
-                  Live rate: 1 {currency} = {fiatSymbol}{fiatRate.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                  Live rate: 1 {currency} = {fiatSymbol}
+                  {parseFloat(quote.cryptoPriceInSenderCurrency).toLocaleString(
+                    "en-US",
+                    {
+                      maximumFractionDigits: 2,
+                    },
+                  )}{" "}
+                  • via {quote.rateSource}
                 </Text>
               </View>
             ) : (
               <View className="mt-5 bg-zinc-800/60 rounded-2xl px-4 py-3 flex-row items-center justify-center">
                 <ActivityIndicator size="small" color="#52525B" />
                 <Text className="text-zinc-600 text-xs font-myMedium ml-2">
-                  Fetching live rate…
+                  Fetching live rate from backend…
                 </Text>
               </View>
             )}
@@ -224,10 +273,15 @@ export default function PaymentConfirm() {
             entering={FadeInUp.delay(240).springify()}
             className="flex-row items-start bg-zinc-900/40 border border-zinc-800/60 rounded-2xl px-4 py-3 mb-8"
           >
-            <Ionicons name="information-circle-outline" size={16} color="#71717A" style={{ marginTop: 1 }} />
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color="#71717A"
+              style={{ marginTop: 1 }}
+            />
             <Text className="text-zinc-600 text-xs font-myMedium ml-2 flex-1 leading-5">
-              Crypto goes to Nexio's custody wallet on Solana. The recipient's INR balance
-              is credited instantly after blockchain confirmation.
+              Crypto goes to Nexio's custody wallet on Solana. The recipient's
+              INR balance is credited instantly after blockchain confirmation.
             </Text>
           </Animated.View>
 
@@ -235,10 +289,10 @@ export default function PaymentConfirm() {
           <Animated.View entering={FadeInUp.delay(300).springify()}>
             <TouchableOpacity
               activeOpacity={0.85}
-              disabled={isSending}
+              disabled={isSending || isLoadingQuote || !quote}
               onPress={handleConfirm}
               className={`w-full py-[22px] rounded-3xl flex-row items-center justify-center ${
-                isSending
+                isSending || isLoadingQuote || !quote
                   ? "bg-zinc-900 border border-zinc-800"
                   : "bg-lime-400"
               }`}
@@ -250,17 +304,30 @@ export default function PaymentConfirm() {
                     Opening Phantom…
                   </Text>
                 </>
+              ) : isLoadingQuote || !quote ? (
+                <>
+                  <ActivityIndicator size="small" color="#52525B" />
+                  <Text className="text-zinc-600 text-lg font-myBold ml-3">
+                    Loading rates…
+                  </Text>
+                </>
               ) : (
                 <>
                   <Text className="text-black text-xl font-myBold mr-2">
-                    Confirm & Pay {fiatSymbol}{totalFiat.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Confirm & Pay {fiatSymbol}
+                    {totalFiat.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </Text>
                   <Ionicons name="arrow-forward" size={20} color="black" />
                 </>
               )}
             </TouchableOpacity>
             <Text className="text-zinc-700 text-xs font-myMedium text-center mt-4">
-              Phantom wallet will open to sign this transaction
+              {quote
+                ? "Phantom wallet will open to sign this transaction"
+                : "Fetching live rates from backend…"}
             </Text>
           </Animated.View>
         </ScrollView>
@@ -282,7 +349,9 @@ function FeeRow({
 }) {
   return (
     <View className="flex-row justify-between items-start py-[10px]">
-      <Text className="text-zinc-500 font-myMedium text-sm flex-1 mr-4">{label}</Text>
+      <Text className="text-zinc-500 font-myMedium text-sm flex-1 mr-4">
+        {label}
+      </Text>
       <View className="items-end">
         <Text
           className={`font-myBold text-sm ${
@@ -292,7 +361,9 @@ function FeeRow({
           {value}
         </Text>
         {sub ? (
-          <Text className="text-zinc-600 text-xs font-myMedium mt-0.5">{sub}</Text>
+          <Text className="text-zinc-600 text-xs font-myMedium mt-0.5">
+            {sub}
+          </Text>
         ) : null}
       </View>
     </View>

@@ -107,13 +107,13 @@ export const SigninCard = ({
             {isLoading ? (
               <View className="flex-row items-center">
                 <ActivityIndicator size="small" color="#000000" />
-                <Text className="text-black text-xl font-mySemiBold ml-2">
+                <Text className="text-black text-lg font-mySemiBold ml-2">
                   Logging in...
                 </Text>
               </View>
             ) : (
               <Text
-                className={`text-xl font-mySemiBold ${
+                className={`text-lg font-mySemiBold ${
                   username.trim().length >= 3 && password.length >= 6
                     ? "text-black"
                     : "text-white/50"

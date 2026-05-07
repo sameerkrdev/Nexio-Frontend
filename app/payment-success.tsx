@@ -10,7 +10,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  ZoomIn,
+} from "react-native-reanimated";
 import { paymentService, type Payment } from "../services/payment.service";
 
 type ScreenStatus = "loading" | "success" | "failed" | "pending";
@@ -88,7 +92,6 @@ export default function PaymentSuccess() {
           showsVerticalScrollIndicator={false}
         >
           <View className="flex-1 items-center justify-center px-6 pt-16 pb-14 min-h-[500px]">
-
             {/* Status icon */}
             <Animated.View
               entering={ZoomIn.springify().damping(13).stiffness(120)}
@@ -148,21 +151,23 @@ export default function PaymentSuccess() {
                 entering={FadeInUp.delay(340).springify()}
                 className="w-full bg-zinc-900/60 border border-zinc-800 rounded-[32px] p-6 mb-8"
               >
-                <DetailRow label="Recipient" value={`@${payment.recipientUsername}`} />
-                <DetailRow label="Base amount" value={`${payment.amount} ${payment.currency}`} />
-                {payment.feeBreakdown && (
-                  <>
-                    <DetailRow
-                      label="Service fee"
-                      value={`${payment.feeBreakdown.serviceFee} ${payment.currency}`}
-                    />
-                    <DetailRow
-                      label="Total sent on-chain"
-                      value={`${payment.feeBreakdown.totalAmount} ${payment.currency}`}
-                      highlight
-                    />
-                  </>
-                )}
+                <DetailRow
+                  label="Recipient"
+                  value={`@${payment.recipientUsername}`}
+                />
+                <DetailRow
+                  label="Base amount"
+                  value={`${payment.senderCurrencyAmount} ${payment.senderCurrency}`}
+                />
+                <DetailRow
+                  label="Platform fee"
+                  value={`${payment.platformFeeAmount} ${payment.senderCurrency}`}
+                />
+                <DetailRow
+                  label="Crypto sent"
+                  value={`${parseFloat(payment.totalCryptoAmount).toFixed(6)} ${payment.cryptoType}`}
+                  highlight
+                />
                 <DetailRow
                   label="Status"
                   value={
@@ -170,10 +175,10 @@ export default function PaymentSuccess() {
                     payment.status.slice(1)
                   }
                 />
-                {txHash && (
+                {payment.txHash && (
                   <DetailRow
                     label="Tx hash"
-                    value={`${txHash.slice(0, 10)}…${txHash.slice(-8)}`}
+                    value={`${payment.txHash.slice(0, 10)}…${payment.txHash.slice(-8)}`}
                   />
                 )}
               </Animated.View>
