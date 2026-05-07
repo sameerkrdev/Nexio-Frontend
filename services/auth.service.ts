@@ -17,7 +17,7 @@ export interface TokenPair {
 }
 
 export interface User {
-  id: string;
+  id: string; // This is the userId
   username: string;
   name: string;
   phoneNumber: string;

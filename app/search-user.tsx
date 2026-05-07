@@ -7,6 +7,7 @@ import {
   Image,
   ActivityIndicator,
   FlatList,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -85,9 +86,15 @@ export default function SearchUserScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1">
         {/* Header */}
         <View className="px-6 py-4 flex-row items-center">
           <TouchableOpacity
@@ -153,14 +160,14 @@ export default function SearchUserScreen() {
               >
                 <Image
                   source={{ uri: item.avatar }}
-                  className="w-14 h-14 rounded-full border-2 border-lime-400 mr-4"
+                  className="w-14 h-14 rounded-full border border-zinc-800 mr-4"
                 />
                 <View className="flex-1">
                   <Text className="text-white font-myBold text-lg">{item.name}</Text>
                   <Text className="text-zinc-500 text-sm font-myMedium">@{item.username}</Text>
                 </View>
                 <View className="w-10 h-10 bg-zinc-800 rounded-full items-center justify-center">
-                  <Ionicons name="send-outline" size={18} color="#A3E635" />
+                  <Ionicons name="send-outline" size={18} color="white" />
                 </View>
               </TouchableOpacity>
             )}
@@ -184,8 +191,8 @@ export default function SearchUserScreen() {
         {isWalletModalVisible && (
           <View className="absolute inset-0 bg-black/80 items-center justify-center px-8 z-[100]">
             <View className="bg-[#121212] border border-zinc-800 rounded-[40px] p-8 w-full items-center">
-              <View className="w-20 h-20 bg-lime-400/10 rounded-full items-center justify-center mb-6">
-                <Ionicons name="wallet-outline" size={40} color="#A3E635" />
+              <View className="w-20 h-20 bg-white/5 rounded-full items-center justify-center mb-6">
+                <Ionicons name="wallet-outline" size={40} color="white" />
               </View>
               
               <Text className="text-white text-2xl font-myBold text-center mb-2">
@@ -202,7 +209,7 @@ export default function SearchUserScreen() {
                   setIsWalletModalVisible(false);
                   router.push("/profile");
                 }}
-                className="bg-lime-400 w-full py-5 rounded-2xl items-center shadow-lg shadow-lime-400/20"
+                className="bg-white w-full py-5 rounded-2xl items-center"
               >
                 <Text className="text-black text-lg font-myBold">Connect Now</Text>
               </TouchableOpacity>
@@ -217,7 +224,8 @@ export default function SearchUserScreen() {
             </View>
           </View>
         )}
-      </SafeAreaView>
+        </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }

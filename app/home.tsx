@@ -24,7 +24,9 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useWallet } from "../store/walletStore";
 import { balanceService } from "../services/balance.service";
 import { useAuth } from "../contexts/AuthContext";
+import { paymentService, type Payment } from "../services/payment.service";
 import { BlurView } from "expo-blur";
+import { WalletQRCode } from "../components/WalletQRCode";
 
 const MOCK_USERS = [
   {
@@ -67,6 +69,7 @@ export default function HomeScreen() {
   const { address } = useWallet();
   const router = useRouter();
   const { user, loginWithPassword } = useAuth();
+  // console.log(user);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,6 +78,11 @@ export default function HomeScreen() {
   );
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Debug: Log when profile state changes
+  useEffect(() => {
+    console.log("isProfileOpen changed to:", isProfileOpen);
+  }, [isProfileOpen]);
   const [isSendDrawerOpen, setIsSendDrawerOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState("SOL");
   const [balances, setBalances] = useState({ sol: "0.0000", eth: "0.0000" });
@@ -84,9 +92,180 @@ export default function HomeScreen() {
   const [passwordInput, setPasswordInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [transactions, setTransactions] = useState<Payment[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   // Get currency from user's wallet
   const currency = user?.wallet?.currency || "USD";
+
+  // Generate consistent color based on username using hash
+  const getAvatarColorFromName = (name: string) => {
+    const colors = [
+      "#7C3AED", // deep purple
+      "#2563EB", // royal blue
+      "#0891B2", // dark cyan
+      "#059669", // emerald green
+      "#CA8A04", // golden yellow
+      "#EA580C", // burnt orange
+      "#DC2626", // crimson red
+      "#DB2777", // magenta pink
+      "#6366F1", // soft indigo
+      "#8B5CF6", // lavender purple
+      "#06B6D4", // bright cyan
+      "#10B981", // mint green
+    ];
+
+    // Simple hash function to convert name to a number
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+
+    // Use absolute value and modulo to get consistent index
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
+  // Get initial from username
+  const getInitial = (username: string) => {
+    return username.charAt(0).toUpperCase();
+  };
+
+  // Capitalize first letter of username
+  const capitalizeFirstLetter = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  // Crypto icon mapping
+  const getCryptoIcon = (cryptoType: string) => {
+    const icons: Record<string, string> = {
+      SOL: "https://cryptologos.cc/logos/solana-sol-logo.png",
+      USDC: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
+      USDT: "https://cryptologos.cc/logos/tether-usdt-logo.png",
+      ETH: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+      LINK: "https://cryptologos.cc/logos/chainlink-link-logo.png",
+    };
+    return icons[cryptoType.toUpperCase()] || icons.SOL;
+  };
+
+  // Helper function to map payment data to UI format
+  const mapPaymentToUI = (payment: Payment, index: number) => {
+    const isSender = payment.senderId === user?.id;
+    const amount = parseFloat(
+      isSender ? payment.senderCurrencyAmount : payment.receiverCurrencyAmount,
+    );
+    const paymentCurrency = isSender
+      ? payment.senderCurrency
+      : payment.receiverCurrency;
+
+    // Map status to icon and color
+    let icon = "wallet";
+    let color = "#71717A";
+    let type = isSender ? "Sent" : "Received";
+    let amountColor = isSender ? "text-red-500" : "text-green-500"; // Default for completed
+
+    if (payment.status === "completed") {
+      icon = isSender ? "arrow-up" : "arrow-down-right";
+      color = isSender ? "#EF4444" : "#10B981";
+      amountColor = isSender ? "text-red-500" : "text-green-500";
+    } else if (payment.status === "pending") {
+      icon = "time";
+      color = "#FBBF24"; // more yellowish
+      type = "Pending";
+      amountColor = "text-yellow-500"; // Yellow for pending
+    } else if (payment.status === "failed") {
+      icon = "close";
+      color = "#EF4444";
+      type = "Failed";
+      amountColor = "text-zinc-500"; // Gray for failed
+    } else if (payment.status === "expired") {
+      icon = "alert";
+      color = "#71717A";
+      type = "Expired";
+      amountColor = "text-zinc-500"; // Gray for expired
+    }
+
+    // Format date with time (like activity screen)
+    const date = new Date(payment.createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    let dateStr = "";
+    if (diffDays === 0) {
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      if (hours > 0) {
+        dateStr = `Today, ${date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+      } else if (minutes > 0) {
+        dateStr = `${minutes}m ago`;
+      } else {
+        dateStr = "Just now";
+      }
+    } else if (diffDays === 1) {
+      dateStr = "Yesterday";
+    } else {
+      dateStr = date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    const username = isSender
+      ? payment.recipientUsername
+      : payment.senderUsername || "unknown";
+    const avatarBgColor = getAvatarColorFromName(username);
+    const initial = getInitial(username);
+
+    return {
+      name: capitalizeFirstLetter(username),
+      username: `@${username}`,
+      type,
+      date: dateStr,
+      amount: `${isSender ? "-" : "+"}${paymentCurrency === "USD" ? "$" : "₹"}${amount.toFixed(2)}`,
+      color,
+      icon,
+      isSender, // Add this to determine text color
+      amountColor, // Add amount color based on status
+      cryptoIcon: getCryptoIcon(payment.cryptoType), // Add crypto icon
+      avatarBgColor, // Add avatar background color (consistent per username)
+      initial, // Add initial letter
+    };
+  };
+
+  // Fetch transactions
+  const fetchTransactions = async () => {
+    if (!user) return;
+
+    setIsLoadingTransactions(true);
+    try {
+      const response = await paymentService.getPaymentHistory(1, 5);
+
+      // Handle different response structures
+      let payments: Payment[] = [];
+
+      if (Array.isArray(response)) {
+        // If response is directly an array (shouldn't happen but handle it)
+        payments = response;
+      } else if (response && response.data) {
+        // Normal case: response.data contains the payments array
+        payments = Array.isArray(response.data) ? response.data : [];
+      }
+
+      // console.log("Extracted payments:", payments);
+      setTransactions(payments);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      setTransactions([]); // Set empty array on error
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [user]);
 
   const handleVerifyPassword = async () => {
     if (!passwordInput || !user?.username) return;
@@ -130,7 +309,11 @@ export default function HomeScreen() {
               <View className="flex-row items-center justify-between mb-8">
                 <View className="flex-row items-center">
                   <TouchableOpacity
-                    onPress={() => setIsProfileOpen(true)}
+                    onPress={() => {
+                      console.log("Profile picture pressed");
+                      setIsProfileOpen(true);
+                    }}
+                    activeOpacity={0.7}
                     className="w-12 h-12 rounded-full overflow-hidden bg-zinc-900 border border-zinc-800 mr-4"
                   >
                     <Image
@@ -315,7 +498,7 @@ export default function HomeScreen() {
                             if (user.id === "4") {
                               setIsSendDrawerOpen(true);
                             } else {
-                              const validUser = user as typeof MOCK_USERS[0];
+                              const validUser = user as (typeof MOCK_USERS)[0];
                               router.push({
                                 pathname: "/send",
                                 params: {
@@ -383,7 +566,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Latest Transactions Section (Dark Panel with Handle Bar) */}
-            <View className="bg-[#121212] border rounded-t-[50px] pt-5 px-8 pb-48 border-t border-zinc-800/50">
+            <View className="bg-[#121212] border rounded-t-[50px] pt-5 px-8 pb-40 border-t border-zinc-800/50">
               {/* Handle Bar (Pill) */}
               <View className="w-12 h-1 bg-zinc-800 rounded-full mb-5 self-center" />
 
@@ -391,276 +574,291 @@ export default function HomeScreen() {
                 <Text className="text-white text-xl font-myMedium">
                   Latest Transactions
                 </Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push("/activity")}>
                   <Text className="text-zinc-500 font-myMedium">See all</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Transaction List */}
-              <View className="gap-y-6">
-                {[
-                  {
-                    name: "Steam Purchase",
-                    type: "Entertainment",
-                    date: "Jun 23",
-                    amount: "-$42.00",
-                    color: "#3B82F6",
-                    icon: "game-controller",
-                  },
-                  {
-                    name: "PayPal Transfer",
-                    type: "Income",
-                    date: "Jun 22",
-                    amount: "+$2,500.00",
-                    color: "#10B981",
-                    icon: "wallet",
-                  },
-                  {
-                    name: "Spotify Premium",
-                    type: "Subscription",
-                    date: "Jun 21",
-                    amount: "-$9.99",
-                    color: "#1DB954",
-                    icon: "musical-notes",
-                  },
-                ].map((tx, i) => (
-                  <View key={i} className="flex-row items-center">
-                    <View
-                      style={{ backgroundColor: tx.color + "20" }}
-                      className="w-14 h-14 rounded-full items-center justify-center mr-4"
-                    >
-                      <Ionicons
-                        name={tx.icon as any}
-                        size={24}
-                        color={tx.color}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-white text-lg font-myMedium">
-                        {tx.name}
-                      </Text>
-                      <Text className="text-zinc-500 text-sm font-myRegular">
-                        {tx.type} • {tx.date}
-                      </Text>
-                    </View>
-                    <Text
-                      className={`text-lg font-myMedium ${tx.amount.startsWith("+") ? "text-green-500" : "text-white"}`}
-                    >
-                      {tx.amount}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              {isLoadingTransactions ? (
+                <View className="py-10 items-center">
+                  <ActivityIndicator size="large" color="#ffffff" />
+                </View>
+              ) : !transactions || transactions.length === 0 ? (
+                <View className="py-10 items-center">
+                  <Ionicons name="receipt-outline" size={48} color="#52525B" />
+                  <Text className="text-zinc-500 font-myMedium mt-4">
+                    No transactions yet
+                  </Text>
+                </View>
+              ) : (
+                <View className="gap-y-6">
+                  {transactions.map((payment, index) => {
+                    const uiTx = mapPaymentToUI(payment, index);
+                    return (
+                      <View key={payment.id} className="flex-row items-center">
+                        <View
+                          style={{ backgroundColor: uiTx.avatarBgColor }}
+                          className="w-14 h-14 rounded-full items-center justify-center mr-4"
+                        >
+                          <Text className="text-white text-xl font-myBold">
+                            {uiTx.initial}
+                          </Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-white text-lg font-myMedium">
+                            {uiTx.name}
+                          </Text>
+                          <Text className="text-zinc-400 text-sm font-myRegular">
+                            {uiTx.username}
+                          </Text>
+                          <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
+                            {uiTx.type} • {uiTx.date}
+                          </Text>
+                        </View>
+                        <View className="items-end">
+                          <Text
+                            className={`text-lg font-myMedium ${uiTx.amountColor}`}
+                          >
+                            {uiTx.amount}
+                          </Text>
+                          <View className="flex-row items-center mt-1">
+                            <Text className="text-zinc-500 text-xs font-myRegular mr-2">
+                              From
+                            </Text>
+                            <Image
+                              source={{ uri: uiTx.cryptoIcon }}
+                              className="w-4 h-4 rounded-full"
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </ScrollView>
-
-          <FloatingNav onProfilePress={() => setIsProfileOpen(true)} />
         </SafeAreaView>
+        <FloatingNav
+          onProfilePress={() => {
+            console.log("Opening profile drawer...");
+            setIsProfileOpen(true);
+          }}
+        />
+      </ImageBackground>
 
-        {/* Profile Drawer / QR Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={isProfileOpen}
-          onRequestClose={() => setIsProfileOpen(false)}
+      {/* Profile Drawer / QR Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isProfileOpen}
+        onRequestClose={() => setIsProfileOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/80 justify-end"
+          onPress={() => setIsProfileOpen(false)}
         >
           <Pressable
-            className="flex-1 bg-black/80 justify-end"
-            onPress={() => setIsProfileOpen(false)}
+            className="bg-[#121212] rounded-t-[40px] p-8 border-t border-zinc-800 items-center"
+            onPress={(e) => e.stopPropagation()}
           >
-            <Pressable
-              className="bg-[#121212] rounded-t-[40px] p-8 border-t border-zinc-800 items-center"
-              onPress={(e) => e.stopPropagation()}
-            >
-              {/* Handle Bar */}
-              <View className="w-12 h-1 bg-zinc-700 rounded-full mb-8" />
+            {/* Handle Bar */}
+            <View className="w-12 h-1 bg-zinc-700 rounded-full mb-8" />
 
-              {/* User Info */}
-              <View className="items-center mb-10">
-                <View className="w-24 h-24 rounded-full overflow-hidden border-2 border-lime-400 mb-4">
-                  <Image
-                    source={{
-                      uri: "https://img.freepik.com/free-vector/smiling-young-man-illustration_1308-173524.jpg",
-                    }}
-                    className="w-full h-full"
-                  />
-                </View>
-                <Text className="text-white text-3xl font-myMedium">
-                  Ryan Dev
-                </Text>
-                <Text className="text-zinc-500 text-lg font-myMedium">
-                  @ryan_nexio
-                </Text>
+            {/* User Info */}
+            <View className="items-center mb-10">
+              <View className="w-24 h-24 rounded-full overflow-hidden border-2 border-lime-400 mb-4">
+                <Image
+                  source={{
+                    uri: "https://img.freepik.com/free-vector/smiling-young-man-illustration_1308-173524.jpg",
+                  }}
+                  className="w-full h-full"
+                />
               </View>
+              <Text className="text-white text-3xl font-myMedium">
+                {user?.name || "User"}
+              </Text>
+              <Text className="text-zinc-500 text-lg font-myMedium">
+                @{user?.username || "username"}
+              </Text>
+            </View>
 
-              {/* QR Code Container */}
-              <View className="bg-white p-6 rounded-[32px] mb-10">
-                <View className="p-4 border-2 border-zinc-100 rounded-2xl">
+            {/* QR Code Container */}
+            <View className="bg-white p-6 rounded-[32px] mb-10">
+              <View className="p-4 border-2 border-zinc-100 rounded-2xl">
+                {/* Use WalletQRCode if address exists, fallback to icon */}
+                {user?.username ? (
+                  <WalletQRCode
+                    name={user?.name ?? null}
+                    walletAddress={user?.solanaPublicKey ?? null}
+                    username={user?.username ?? null}
+                    avatar={""}
+                    size={200}
+                  />
+                ) : (
                   <MaterialCommunityIcons
                     name="qrcode"
                     size={200}
                     color="black"
                   />
-                </View>
+                )}
               </View>
+            </View>
 
-              <Text className="text-zinc-400 text-center text-base font-myMedium px-10 mb-10 leading-6">
-                Scan this QR code to quickly send or receive money with Ryan.
-              </Text>
+            <Text className="text-zinc-400 text-center text-base font-myMedium px-10 mb-10 leading-6">
+              Scan this QR code to quickly send or receive money.
+            </Text>
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setIsProfileOpen(false)}
-                className="bg-zinc-800 w-full py-4 rounded-2xl items-center mb-4"
-              >
-                <Text className="text-white text-lg font-mySemiBold">
-                  Close
-                </Text>
-              </TouchableOpacity>
-            </Pressable>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsProfileOpen(false)}
+              className="bg-zinc-800 w-full py-4 rounded-2xl items-center mb-4"
+            >
+              <Text className="text-white text-lg font-mySemiBold">Close</Text>
+            </TouchableOpacity>
           </Pressable>
-        </Modal>
+        </Pressable>
+      </Modal>
 
-        {/* Send Drawer */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={isSendDrawerOpen}
-          onRequestClose={() => setIsSendDrawerOpen(false)}
+      {/* Send Drawer */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isSendDrawerOpen}
+        onRequestClose={() => setIsSendDrawerOpen(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/80 justify-end"
+          onPress={() => setIsSendDrawerOpen(false)}
         >
           <Pressable
-            className="flex-1 bg-black/80 justify-end"
-            onPress={() => setIsSendDrawerOpen(false)}
+            className="bg-[#121212] rounded-t-[40px] p-8 border-t border-zinc-800"
+            onPress={(e) => e.stopPropagation()}
           >
-            <Pressable
-              className="bg-[#121212] rounded-t-[40px] p-8 border-t border-zinc-800"
-              onPress={(e) => e.stopPropagation()}
-            >
-              {/* Handle Bar */}
-              <View className="w-12 h-1 bg-zinc-700 rounded-full mb-8 self-center" />
+            {/* Handle Bar */}
+            <View className="w-12 h-1 bg-zinc-700 rounded-full mb-8 self-center" />
 
-              <Text className="text-white text-2xl font-myMedium mb-6">
-                Send to
-              </Text>
+            <Text className="text-white text-2xl font-myMedium mb-6">
+              Send to
+            </Text>
 
-              {/* Users List */}
-              {MOCK_USERS.map((user) => (
-                <TouchableOpacity
-                  key={user.id}
-                  className="flex-row items-center bg-zinc-900/60 p-4 rounded-3xl border border-zinc-800 mb-4"
-                  onPress={() => {
-                    setIsSendDrawerOpen(false);
-                    router.push({
-                      pathname: "/send",
-                      params: user,
-                    });
-                  }}
-                >
-                  <Image
-                    source={{ uri: user.avatar }}
-                    className="w-14 h-14 rounded-full border-2 border-lime-400 mr-4"
-                  />
-                  <View className="flex-1">
-                    <Text className="text-white font-myMedium text-lg">
-                      {user.name}
-                    </Text>
-                    <Text className="text-zinc-500 text-sm font-myMedium">
-                      {user.username}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#71717A" />
-                </TouchableOpacity>
-              ))}
+            {/* Users List */}
+            {MOCK_USERS.map((user) => (
+              <TouchableOpacity
+                key={user.id}
+                className="flex-row items-center bg-zinc-900/60 p-4 rounded-3xl border border-zinc-800 mb-4"
+                onPress={() => {
+                  setIsSendDrawerOpen(false);
+                  router.push({
+                    pathname: "/send",
+                    params: user,
+                  });
+                }}
+              >
+                <Image
+                  source={{ uri: user.avatar }}
+                  className="w-14 h-14 rounded-full border-2 border-lime-400 mr-4"
+                />
+                <View className="flex-1">
+                  <Text className="text-white font-myMedium text-lg">
+                    {user.name}
+                  </Text>
+                  <Text className="text-zinc-500 text-sm font-myMedium">
+                    {user.username}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#71717A" />
+              </TouchableOpacity>
+            ))}
 
-              <View className="h-10" />
-            </Pressable>
+            <View className="h-10" />
           </Pressable>
-        </Modal>
-        {/* Password Verification Modal */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={isPasswordModalVisible}
-          onRequestClose={() => {
+        </Pressable>
+      </Modal>
+      {/* Password Verification Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isPasswordModalVisible}
+        onRequestClose={() => {
+          setIsPasswordModalVisible(false);
+          setPasswordInput("");
+          setPasswordError("");
+        }}
+      >
+        <Pressable
+          className="flex-1 bg-black/80 justify-center items-center p-6"
+          onPress={() => {
             setIsPasswordModalVisible(false);
             setPasswordInput("");
             setPasswordError("");
           }}
         >
           <Pressable
-            className="flex-1 bg-black/80 justify-center items-center p-6"
-            onPress={() => {
-              setIsPasswordModalVisible(false);
-              setPasswordInput("");
-              setPasswordError("");
-            }}
+            className="bg-[#121212] px-5 py-6 rounded-[40px] border border-zinc-800/50 items-center w-full"
+            onPress={(e) => e.stopPropagation()}
           >
-            <Pressable
-              className="bg-[#121212] px-5 py-6 rounded-[40px] border border-zinc-800/50 items-center w-full"
-              onPress={(e) => e.stopPropagation()}
-            >
-              <View className="flex-row items-center justify-center gap-4 mb-2 mt-2">
-                <View className="w-10 h-10 bg-white/5 rounded-2xl items-center justify-center">
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={20}
-                    color="#71717A"
-                  />
-                </View>
-                <Text className="text-white text-lg font-myMedium">
-                  Enter Password
-                </Text>
-              </View>
-
-              <Text className="text-zinc-500 text-center font-myRegular text-sm mb-6 px-4 leading-5">
-                Please enter your account password to securely view your
-                balance.
-              </Text>
-
-              <View className="w-full mb-0 relative justify-center px-2">
-                <TextInput
-                  value={passwordInput}
-                  onChangeText={(text) => {
-                    setPasswordInput(text);
-                    setPasswordError("");
-                  }}
-                  secureTextEntry
-                  placeholder="Account password"
-                  placeholderTextColor="#52525B"
-                  className="w-full bg-zinc-900/50 text-white font-myMedium text-base p-4 rounded-2xl border border-zinc-800 text-center"
-                  autoFocus
+            <View className="flex-row items-center justify-center gap-4 mb-2 mt-2">
+              <View className="w-10 h-10 bg-white/5 rounded-2xl items-center justify-center">
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#71717A"
                 />
               </View>
+              <Text className="text-white text-lg font-myMedium">
+                Enter Password
+              </Text>
+            </View>
 
-              {passwordError ? (
-                <Text className="text-red-500 text-xs font-myMedium mb-4 self-start pl-4">
-                  {passwordError}
-                </Text>
-              ) : (
-                <View className="h-4 mb-4" />
-              )}
+            <Text className="text-zinc-500 text-center font-myRegular text-sm mb-6 px-4 leading-5">
+              Please enter your account password to securely view your balance.
+            </Text>
 
-              <View className="w-full px-2">
-                <TouchableOpacity
-                  onPress={handleVerifyPassword}
-                  disabled={isVerifying || !passwordInput}
-                  className={`w-full py-3.5 rounded-2xl items-center justify-center flex-row mb-2 ${!passwordInput ? "bg-zinc-800" : "bg-white"}`}
-                >
-                  {isVerifying ? (
-                    <ActivityIndicator size="small" color="black" />
-                  ) : (
-                    <Text
-                      className={`text-base font-myMedium ${!passwordInput ? "text-zinc-500" : "text-black"}`}
-                    >
-                      Verify & Unlock
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </Pressable>
+            <View className="w-full mb-0 relative justify-center px-2">
+              <TextInput
+                value={passwordInput}
+                onChangeText={(text) => {
+                  setPasswordInput(text);
+                  setPasswordError("");
+                }}
+                secureTextEntry
+                placeholder="Account password"
+                placeholderTextColor="#52525B"
+                className="w-full bg-zinc-900/50 text-white font-myMedium text-base p-4 rounded-2xl border border-zinc-800 text-center"
+                autoFocus
+              />
+            </View>
+
+            {passwordError ? (
+              <Text className="text-red-500 text-xs font-myMedium mb-4 self-start pl-4">
+                {passwordError}
+              </Text>
+            ) : (
+              <View className="h-4 mb-4" />
+            )}
+
+            <View className="w-full px-2">
+              <TouchableOpacity
+                onPress={handleVerifyPassword}
+                disabled={isVerifying || !passwordInput}
+                className={`w-full py-3.5 rounded-2xl items-center justify-center flex-row mb-2 ${!passwordInput ? "bg-zinc-800" : "bg-white"}`}
+              >
+                {isVerifying ? (
+                  <ActivityIndicator size="small" color="black" />
+                ) : (
+                  <Text
+                    className={`text-base font-myMedium ${!passwordInput ? "text-zinc-500" : "text-black"}`}
+                  >
+                    Verify & Unlock
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </Pressable>
-        </Modal>
-      </ImageBackground>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

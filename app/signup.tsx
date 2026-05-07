@@ -10,8 +10,8 @@ export default function Signup() {
       <StatusBar style="light" />
 
       <Image
-        source={require("../assets/bg3.png")}
-        className="absolute w-full h-full opacity-40 scale-[1]"
+        source={require("../assets/bg6.png")}
+        className="absolute w-full h-full opacity-20"
         resizeMode="cover"
       />
 

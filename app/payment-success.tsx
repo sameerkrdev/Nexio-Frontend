@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -84,9 +85,15 @@ export default function PaymentSuccess() {
   const goHome = () => router.replace("/home");
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1">
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
@@ -99,12 +106,12 @@ export default function PaymentSuccess() {
             >
               {status === "loading" && (
                 <View className="w-32 h-32 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
-                  <ActivityIndicator size="large" color="#A3E635" />
+                  <ActivityIndicator size="large" color="#ffffff" />
                 </View>
               )}
               {status === "success" && (
-                <View className="w-32 h-32 rounded-full bg-lime-400/10 border-2 border-lime-400/40 items-center justify-center">
-                  <Ionicons name="checkmark-circle" size={72} color="#A3E635" />
+                <View className="w-32 h-32 rounded-full bg-white/5 border border-white/20 items-center justify-center">
+                  <Ionicons name="checkmark-circle" size={72} color="white" />
                 </View>
               )}
               {status === "pending" && (
@@ -192,7 +199,7 @@ export default function PaymentSuccess() {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={goHome}
-                className="w-full bg-white py-5 rounded-3xl flex-row items-center justify-center"
+                className="w-full bg-white py-4 rounded-2xl flex-row items-center justify-center"
               >
                 <Text className="text-black text-xl font-myBold mr-2">
                   Back to Dashboard
@@ -203,7 +210,7 @@ export default function PaymentSuccess() {
               {txHash && (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  className="w-full bg-zinc-900 border border-zinc-800 py-4 rounded-3xl flex-row items-center justify-center"
+                  className="w-full bg-zinc-900 border border-zinc-800 py-3.5 rounded-2xl flex-row items-center justify-center"
                   onPress={() => {
                     // Could open Solana explorer — for now just shows a hint
                   }}
@@ -217,7 +224,8 @@ export default function PaymentSuccess() {
             </Animated.View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }
@@ -236,7 +244,7 @@ function DetailRow({
       <Text className="text-zinc-500 font-myMedium text-sm">{label}</Text>
       <Text
         className={`font-myBold text-sm ${
-          highlight ? "text-lime-400" : "text-white"
+          highlight ? "text-white" : "text-white"
         }`}
       >
         {value}

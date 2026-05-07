@@ -16,7 +16,10 @@ import nacl from "tweetnacl";
 import { Connection } from "@solana/web3.js";
 import { getDappKeyPair, decryptPayload } from "../lib/phantom";
 import { setWalletData, getSharedSecret } from "../store/walletStore";
-import { getPendingPayment, clearPendingPayment } from "../store/pendingPaymentStore";
+import {
+  getPendingPayment,
+  clearPendingPayment,
+} from "../store/pendingPaymentStore";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 
 const SOLANA_RPC = "https://api.devnet.solana.com";
@@ -105,13 +108,13 @@ export default function Layout() {
       try {
         const keyPair = await getDappKeyPair();
         const phantomKey = bs58.decode(
-          queryParams.phantom_encryption_public_key as string
+          queryParams.phantom_encryption_public_key as string,
         );
         const secret = nacl.box.before(phantomKey, keyPair.secretKey);
         const payload = decryptPayload(
           queryParams.data as string,
           queryParams.nonce as string,
-          secret
+          secret,
         );
 
         setWalletData({
@@ -142,12 +145,17 @@ export default function Layout() {
 
       try {
         const sharedSecret = getSharedSecret();
-        if (!sharedSecret) throw new Error("No shared secret — reconnect Phantom");
+        if (!sharedSecret)
+          throw new Error("No shared secret — reconnect Phantom");
+
+        // FIX: guard against null queryParams before destructuring
+        if (!queryParams)
+          throw new Error("Missing query params in onSignTransaction URL");
 
         const decrypted = decryptPayload(
-          queryParams!.data as string,
-          queryParams!.nonce as string,
-          sharedSecret
+          queryParams.data as string,
+          queryParams.nonce as string,
+          sharedSecret,
         );
 
         // Signed tx comes back in base58 — decode to bytes
@@ -179,6 +187,27 @@ export default function Layout() {
         router.back();
       }
       return;
+    } // ← FIX: closing brace for onSignTransaction block was missing here
+
+    // ─── QR Scan → fronteir_payment ─────────────────────────────
+    if (
+      url.includes("fronteir_payment") ||
+      url.includes("type=fronteir_payment")
+    ) {
+      const { queryParams } = Linking.parse(url);
+
+      if (queryParams && queryParams.type === "fronteir_payment") {
+        router.push({
+          pathname: "/send",
+          params: {
+            username: (queryParams.username as string) || "",
+            name: (queryParams.name as string) || "",
+            avatar: (queryParams.avatar as string) || "",
+            walletAddress: (queryParams.walletAddress as string) || "",
+          },
+        });
+        return;
+      }
     }
   };
 

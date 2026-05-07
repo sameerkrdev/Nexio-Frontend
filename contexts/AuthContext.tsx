@@ -16,6 +16,7 @@ import { clearWalletData } from "../store/walletStore";
 
 interface AuthContextType {
   user: User | null;
+  userId: string | null; // Expose userId directly for convenience
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, otp: string) => Promise<void>;
@@ -72,17 +73,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const userData = await authService.getMe();
-      // console.log(userData);
       setUser(userData);
       setAuthenticated(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching user:", error);
-      // If token is invalid, clear it
-      await clearTokens();
-      setUser(null);
-      setAuthenticated(false);
-      // Redirect to login if session expired
-      router.replace("/");
+
+      // If it's a 401 error (session expired), the API client will handle token refresh
+      // If refresh fails, tokens will be cleared automatically
+      const isSessionExpired =
+        error?.statusCode === 401 ||
+        error?.message?.includes("Session expired");
+
+      if (isSessionExpired) {
+        await clearTokens();
+        setUser(null);
+        setAuthenticated(false);
+        // Redirect to login if session expired
+        router.replace("/");
+      }
     }
   };
 
@@ -148,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
+        userId: user?.id || null, // Expose userId directly
         isLoading,
         isAuthenticated: authenticated,
         login,

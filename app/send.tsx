@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, Image, Alert, ActivityIndicator, ImageBackground } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -119,10 +119,16 @@ export default function SendScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1 flex-col justify-between">
-        <View>
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1 flex-col justify-between">
+          <View>
           <View className="px-6 py-4 flex-row items-center justify-between">
             <TouchableOpacity
               onPress={() => router.back()}
@@ -189,7 +195,7 @@ export default function SendScreen() {
                 source={{
                   uri: avatar || "https://ui-avatars.com/api/?name=" + name,
                 }}
-                className="w-8 h-8 rounded-full mr-3 border border-lime-400"
+                className="w-8 h-8 rounded-full mr-3 border border-zinc-700"
               />
               <Text className="text-zinc-400 text-sm font-myMedium">
                 To <Text className="text-white font-myBold">{name}</Text>
@@ -206,7 +212,7 @@ export default function SendScreen() {
             <Text
               className={
                 "text-5xl font-myBold mr-1 " +
-                (amount === "0" ? "text-zinc-800" : "text-lime-400")
+                (amount === "0" ? "text-zinc-800" : "text-white")
               }
             >
               {fiatSymbol}
@@ -249,16 +255,16 @@ export default function SendScreen() {
               activeOpacity={0.8}
               disabled={amount === "0"}
               className={
-                "w-full py-5 rounded-3xl flex-row items-center justify-center " +
+                "w-full py-4 rounded-2xl flex-row items-center justify-center " +
                 (amount !== "0"
-                  ? "bg-[#A3E635]"
+                  ? "bg-white"
                   : "bg-zinc-900 border border-zinc-800")
               }
               onPress={handleReview}
             >
               <Text
                 className={
-                  "text-xl font-myBold " +
+                  "text-lg font-myMedium " +
                   (amount !== "0" ? "text-black" : "text-zinc-500")
                 }
               >
@@ -273,6 +279,7 @@ export default function SendScreen() {
           </View>
         </View>
       </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }

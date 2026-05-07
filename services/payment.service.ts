@@ -22,6 +22,7 @@ export interface CreatePaymentResponse {
 export interface Payment {
   id: string;
   senderId: string;
+  senderUsername?: string; // Username of the sender
   recipientUsername: string;
   recipientUserId: string;
   cryptoType: string;
@@ -193,6 +194,39 @@ class PaymentService {
       true,
     );
     return response.data!.signature;
+  }
+
+  /**
+   * Get payment history for the current user
+   * Returns all payments where user is either sender or recipient
+   */
+  async getPaymentHistory(
+    page: number = 1,
+    limit: number = 20,
+    status?: "pending" | "completed" | "failed" | "expired" | "cancelled",
+  ): Promise<{
+    data: Payment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    let url = `/payments/history?page=${page}&limit=${limit}`;
+    if (status) {
+      url += `&status=${status}`;
+    }
+
+    const response = await apiClient.get<{
+      data: Payment[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }>(url, true);
+
+    // Backend returns { success: true, data: [...], total, page, limit, totalPages }
+    // So response.data contains the whole object
+    return response.data!;
   }
 }
 

@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   ScrollView,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -152,9 +153,15 @@ export default function PaymentConfirm() {
   };
 
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
-      <StatusBar style="light" />
-      <SafeAreaView className="flex-1">
+    <View className="flex-1 bg-black">
+      <ImageBackground
+        source={require("../assets/bg6.png")}
+        className="flex-1"
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.2 }}
+      >
+        <StatusBar style="light" />
+        <SafeAreaView className="flex-1">
         {/* Header */}
         <View className="px-6 py-4 flex-row items-center">
           <TouchableOpacity
@@ -186,9 +193,9 @@ export default function PaymentConfirm() {
               source={{
                 uri:
                   recipientAvatar ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(recipientName ?? "")}&background=A3E635&color=000`,
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(recipientName ?? "")}&background=121212&color=fff`,
               }}
-              className="w-20 h-20 rounded-full border-2 border-lime-400 mb-4"
+              className="w-20 h-20 rounded-full border border-zinc-800 mb-4"
             />
             <Text className="text-white text-2xl font-myBold">
               {recipientName}
@@ -291,16 +298,16 @@ export default function PaymentConfirm() {
               activeOpacity={0.85}
               disabled={isSending || isLoadingQuote || !quote}
               onPress={handleConfirm}
-              className={`w-full py-[22px] rounded-3xl flex-row items-center justify-center ${
+              className={`w-full py-[18px] rounded-2xl flex-row items-center justify-center ${
                 isSending || isLoadingQuote || !quote
                   ? "bg-zinc-900 border border-zinc-800"
-                  : "bg-lime-400"
+                  : "bg-white"
               }`}
             >
               {isSending ? (
                 <>
-                  <ActivityIndicator size="small" color="#A3E635" />
-                  <Text className="text-lime-400 text-lg font-myBold ml-3">
+                  <ActivityIndicator size="small" color="#ffffff" />
+                  <Text className="text-white text-lg font-myBold ml-3">
                     Opening Phantom…
                   </Text>
                 </>
@@ -331,7 +338,8 @@ export default function PaymentConfirm() {
             </Text>
           </Animated.View>
         </ScrollView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </ImageBackground>
     </View>
   );
 }
@@ -355,7 +363,7 @@ function FeeRow({
       <View className="items-end">
         <Text
           className={`font-myBold text-sm ${
-            highlight ? "text-lime-400" : "text-white"
+            highlight ? "text-white" : "text-white"
           }`}
         >
           {value}
