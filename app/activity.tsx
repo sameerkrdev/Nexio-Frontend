@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,63 +9,85 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Image,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { FloatingNav } from "../components/FloatingNav";
-import { paymentService, type Payment } from "../services/payment.service";
+import { type Payment } from "../services/payment.service";
 import { useAuth } from "../contexts/AuthContext";
+import { useInfiniteTransactions } from "../hooks/useInfiniteTransactions";
 
 export default function ActivityScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [filter, setFilter] = useState("All");
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+
+  // React Query infinite scroll
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useInfiniteTransactions(user?.id, 20);
+
+  // Flatten all pages into single array
+  const payments = useMemo(() => {
+    if (!data?.pages) return [];
+    return data.pages.flatMap((page) => {
+      if (Array.isArray(page)) return page;
+      if (page?.data && Array.isArray(page.data)) return page.data;
+      return [];
+    });
+  }, [data]);
+
   const [totalSpending, setTotalSpending] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Get currency from user's wallet
   const currency = user?.wallet?.currency || "USD";
   const currencySymbol = currency === "USD" ? "$" : "₹";
 
-  // Generate consistent color based on username using hash
-  const getAvatarColorFromName = (name: string) => {
-    const colors = [
-      "#7C3AED", // deep purple
-      "#2563EB", // royal blue
-      "#0891B2", // dark cyan
-      "#059669", // emerald green
-      "#CA8A04", // golden yellow
-      "#EA580C", // burnt orange
-      "#DC2626", // crimson red
-      "#DB2777", // magenta pink
-      "#6366F1", // soft indigo
-      "#8B5CF6", // lavender purple
-      "#06B6D4", // bright cyan
-      "#10B981", // mint green
-    ];
+  // Calculate total spending when payments change
+  useEffect(() => {
+    if (!user || !payments.length) return;
+    const spending = payments
+      .filter(
+        (payment) =>
+          payment.senderId === user.id && payment.status === "completed",
+      )
+      .reduce(
+        (sum, payment) => sum + parseFloat(payment.senderCurrencyAmount),
+        0,
+      );
+    setTotalSpending(spending);
+  }, [payments, user]);
 
-    // Simple hash function to convert name to a number
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-
-    // Use absolute value and modulo to get consistent index
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
+  // Pull to refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
   };
 
-  // Get initial from username
-  const getInitial = (username: string) => {
-    return username.charAt(0).toUpperCase();
+  // Handle scroll event for infinite scrolling
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 100;
+
+    // Check if user has scrolled near the bottom
+    if (
+      layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      fetchNextPage();
+    }
   };
 
   // Capitalize first letter of username
@@ -152,8 +174,7 @@ export default function ActivityScreen() {
     const username = isSender
       ? payment.recipientUsername
       : payment.senderUsername || "unknown";
-    const avatarBgColor = getAvatarColorFromName(username);
-    const initial = getInitial(username);
+    const avatarUrl = `https://robohash.org/${username}?set=set4&size=200x200`;
 
     return {
       name: capitalizeFirstLetter(username),
@@ -167,102 +188,9 @@ export default function ActivityScreen() {
       isSender, // Add this for consistent color logic
       amountColor, // Add amount color based on status
       cryptoIcon: getCryptoIcon(payment.cryptoType), // Add crypto icon
-      avatarBgColor, // Add avatar background color (consistent per username)
-      initial, // Add initial letter
+      avatarUrl, // Add avatar URL
     };
   };
-
-  // Fetch transactions (initial load)
-  const fetchTransactions = async (
-    pageNum: number = 1,
-    append: boolean = false,
-  ) => {
-    if (!user) return;
-
-    if (append) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-    }
-
-    try {
-      const response = await paymentService.getPaymentHistory(pageNum, 20);
-      // console.log("Activity response:", response);
-
-      // Handle different response structures
-      let newPayments: Payment[] = [];
-      let total = 0;
-      let totalPagesCount = 1;
-
-      if (Array.isArray(response)) {
-        // If response is directly an array
-        newPayments = response;
-      } else if (response && response.data) {
-        // Normal case: response has data property
-        newPayments = Array.isArray(response.data) ? response.data : [];
-        total = response.total || 0;
-        totalPagesCount = response.totalPages || 1;
-      }
-
-      if (append) {
-        // Append to existing payments for infinite scroll
-        setPayments((prev) => [...prev, ...newPayments]);
-      } else {
-        // Replace payments for initial load
-        setPayments(newPayments);
-      }
-
-      setTotalPages(totalPagesCount);
-      setPage(pageNum);
-      setHasMore(pageNum < totalPagesCount);
-
-      // Calculate total spending (sum of sent payments)
-      const allPayments = append ? [...payments, ...newPayments] : newPayments;
-      const spending = allPayments
-        .filter(
-          (payment) =>
-            payment.senderId === user.id && payment.status === "completed",
-        )
-        .reduce(
-          (sum, payment) => sum + parseFloat(payment.senderCurrencyAmount),
-          0,
-        );
-      setTotalSpending(spending);
-    } catch (error) {
-      console.error("Failed to fetch transactions:", error);
-      if (!append) {
-        setPayments([]);
-      }
-    } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
-    }
-  };
-
-  // Load more transactions when scrolling
-  const loadMoreTransactions = () => {
-    if (!isLoadingMore && hasMore && !isLoading) {
-      fetchTransactions(page + 1, true);
-    }
-  };
-
-  // Handle scroll event for infinite scrolling
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 100;
-
-    // Check if user has scrolled near the bottom
-    if (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom
-    ) {
-      loadMoreTransactions();
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions(1, false);
-  }, [user]);
 
   return (
     <View className="flex-1 bg-black">
@@ -321,6 +249,14 @@ export default function ActivityScreen() {
             className="flex-1"
             onScroll={handleScroll}
             scrollEventThrottle={400}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#a3e635"
+                colors={["#a3e635"]}
+              />
+            }
           >
             <View className="bg-[#121212] border rounded-t-[50px] pt-8 px-8 pb-48 border-t border-zinc-800/50 min-h-screen">
               <Text className="text-white text-xl font-myMedium mb-8">
@@ -341,22 +277,60 @@ export default function ActivityScreen() {
               ) : (
                 <>
                   <View className="gap-y-6">
-                    {payments.map((payment, index) => {
-                      const uiTx = mapPaymentToUI(payment, index);
+                    {payments.map((payment) => {
+                      const uiTx = mapPaymentToUI(payment, 0);
+                      const isSender = payment.senderId === user?.id;
+                      const amount = parseFloat(
+                        isSender
+                          ? payment.senderCurrencyAmount
+                          : payment.receiverCurrencyAmount,
+                      );
+                      const paymentCurrency = isSender
+                        ? payment.senderCurrency
+                        : payment.receiverCurrency;
+
                       return (
                         <TouchableOpacity
                           key={payment.id}
                           className="flex-row items-center"
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            router.push({
+                              pathname: "/transaction-detail",
+                              params: {
+                                id: payment.id,
+                                status: payment.status,
+                                type: isSender ? "Sent" : "Received",
+                                amount: amount.toFixed(2),
+                                currency: paymentCurrency,
+                                cryptoAmount: payment.cryptoAmount,
+                                cryptoType: payment.cryptoType,
+                                recipientName:
+                                  payment.recipientUsername || "Unknown",
+                                recipientUsername: `@${payment.recipientUsername || "unknown"}`,
+                                senderName: payment.senderUsername || "Unknown",
+                                senderUsername: `@${payment.senderUsername || "unknown"}`,
+                                date: new Date(
+                                  payment.createdAt,
+                                ).toLocaleString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }),
+                                txHash: payment.txHash || "",
+                                platformFee: payment.platformFeeAmount || "0",
+                                isSender: isSender.toString(),
+                              },
+                            });
+                          }}
                         >
-                          <View
-                            style={{
-                              backgroundColor: `${uiTx.avatarBgColor}`,
-                            }}
-                            className="w-14 h-14 rounded-full items-center justify-center mr-4"
-                          >
-                            <Text className="text-white text-xl font-myBold">
-                              {uiTx.initial}
-                            </Text>
+                          <View className="w-14 h-14 rounded-full items-center justify-center mr-4 overflow-hidden bg-zinc-900 border border-zinc-800">
+                            <Image
+                              source={{ uri: uiTx.avatarUrl }}
+                              className="w-full h-full"
+                            />
                           </View>
                           <View className="flex-1">
                             <Text className="text-white text-lg font-myMedium">
@@ -391,7 +365,7 @@ export default function ActivityScreen() {
                   </View>
 
                   {/* Loading More Indicator */}
-                  {isLoadingMore && (
+                  {isFetchingNextPage && (
                     <View className="py-6 items-center">
                       <ActivityIndicator size="small" color="#ffffff" />
                       <Text className="text-zinc-500 text-sm font-myMedium mt-2">
@@ -401,7 +375,7 @@ export default function ActivityScreen() {
                   )}
 
                   {/* End of List Indicator */}
-                  {!hasMore && payments.length > 0 && (
+                  {!hasNextPage && payments.length > 0 && (
                     <View className="py-6 items-center">
                       <Text className="text-zinc-500 text-sm font-myMedium">
                         No more transactions

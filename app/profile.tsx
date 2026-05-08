@@ -86,10 +86,18 @@ export default function Profile() {
     );
   }
 
+  if (!user) {
+    return (
+      <View className="flex-1 bg-black items-center justify-center">
+        <Text className="text-zinc-400 font-myMedium">Loading profile...</Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-black">
       <ImageBackground
-        source={require("../assets/bg6.png")}
+        source={require("../assets/bg3.png")}
         className="flex-1"
         resizeMode="cover"
         imageStyle={{ opacity: 0.2 }}
@@ -100,14 +108,10 @@ export default function Profile() {
             <View className="px-6 pt-6 pb-8">
               {/* Header */}
               <View className="flex-row items-center justify-between mb-8">
-                <View>
-                  <Text className="text-zinc-500 text-sm font-myMedium mb-1">
-                    Profile
-                  </Text>
-                  <Text className="text-white text-2xl font-myMedium">
-                    {user?.name || "Guest User"}
-                  </Text>
-                </View>
+                <Text className="text-white text-2xl font-myMedium">
+                  Profile
+                </Text>
+
                 <TouchableOpacity className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 items-center justify-center">
                   <Ionicons name="settings-outline" size={20} color="white" />
                 </TouchableOpacity>
@@ -121,7 +125,7 @@ export default function Profile() {
                     <View className="w-20 h-20 rounded-full border-2 border-zinc-800 overflow-hidden mr-4">
                       <Image
                         source={{
-                          uri: "https://img.freepik.com/free-vector/smiling-young-man-illustration_1308-173524.jpg",
+                          uri: `https://robohash.org/${user.username!}?set=set4&size=200x200`,
                         }}
                         className="w-full h-full"
                       />
@@ -209,17 +213,17 @@ export default function Profile() {
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={connectPhantom}
-                    className="bg-white rounded-[32px] p-6 flex-row items-center justify-between"
+                    className="bg-[#a59ae9] rounded-[20px] p-6 flex-row items-center justify-between"
                   >
                     <View className="flex-row items-center flex-1">
                       <View className="w-12 h-12 bg-black/5 rounded-2xl items-center justify-center mr-4">
-                        <FontAwesome5 name="ghost" size={20} color="black" />
+                        <FontAwesome5 name="ghost" size={20} color="white" />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-black text-lg font-myMedium">
+                        <Text className="text-black text-lg font-mySemiBold">
                           Connect Phantom
                         </Text>
-                        <Text className="text-black/60 text-sm font-myRegular">
+                        <Text className="text-black/60 text-sm font-myMedium">
                           Link your wallet to get started
                         </Text>
                       </View>

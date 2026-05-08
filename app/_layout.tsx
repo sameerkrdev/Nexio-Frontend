@@ -21,10 +21,21 @@ import {
   clearPendingPayment,
 } from "../store/pendingPaymentStore";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const SOLANA_RPC = "https://api.devnet.solana.com";
 
-// ─── Route guard component ────────────────────────────────────────────────────
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // data stays fresh for 2 mins
+      gcTime: 1000 * 60 * 10, // cache kept for 10 mins
+      retry: 2, // retry failed requests twice
+      refetchOnWindowFocus: false, // don't refetch on app focus
+    },
+  },
+});
+
 function InnerLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
@@ -66,6 +77,8 @@ function InnerLayout() {
       <Stack.Screen name="search-user" />
       <Stack.Screen name="payment-confirm" />
       <Stack.Screen name="payment-success" />
+      <Stack.Screen name="activity" />
+      <Stack.Screen name="transaction-detail" />
     </Stack>
   );
 }
@@ -214,8 +227,10 @@ export default function Layout() {
   if (!loaded) return null;
 
   return (
-    <AuthProvider>
-      <InnerLayout />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <InnerLayout />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
