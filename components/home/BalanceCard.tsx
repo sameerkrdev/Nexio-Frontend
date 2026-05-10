@@ -22,13 +22,12 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   return (
     <View className="mb-4">
       <ImageBackground
-        source={require("../../assets/card.png")}
+        source={require("../../assets/card3.png")}
         className="w-full aspect-[1.3] rounded-[32px] relative overflow-hidden p-8 justify-between"
         imageStyle={{ borderRadius: 32 }}
-        resizeMode="stretch"
+        resizeMode="cover"
       >
-        {/* Top Right: Currency Display */}
-        <View className="absolute top-6 right-6 z-50">
+        <View className="absolute top-10 right-6 z-50">
           <View className="bg-black/30 px-3 py-1.5 rounded-xl flex-row items-center border border-white/10">
             <Text className="text-white text-xs font-myMedium">
               {currency === "INR" && "🇮🇳 INR"}

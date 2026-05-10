@@ -216,22 +216,90 @@ export default function Profile() {
                     className="bg-[#a59ae9] rounded-[20px] p-6 flex-row items-center justify-between"
                   >
                     <View className="flex-row items-center flex-1">
-                      <View className="w-12 h-12 bg-black/5 rounded-2xl items-center justify-center mr-4">
-                        <FontAwesome5 name="ghost" size={20} color="white" />
+                      <View className="w-12 h-12 bg-black/0 rounded-2xl items-center justify-center mr-4 overflow-hidden">
+                        <Image
+                          source={require("../assets/phantom.png")}
+                          className="w-12 h-12"
+                          resizeMode="contain"
+                        />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-black text-lg font-mySemiBold">
+                        <Text className="text-white text-lg font-myBold">
                           Connect Phantom
                         </Text>
-                        <Text className="text-black/60 text-sm font-myMedium">
+                        <Text className="text-white/60 text-sm font-myBold">
                           Link your wallet to get started
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={24} color="black" />
+                    <Ionicons name="chevron-forward" size={24} color="white" />
                   </TouchableOpacity>
                 </View>
               )}
+
+              {/* Withdrawal Section */}
+              <View className="mb-6">
+                <Text className="text-white text-lg font-myMedium mb-4">
+                  Withdrawals
+                </Text>
+                <View className="gap-y-3">
+                  <TouchableOpacity
+                    onPress={() => router.push("/withdraw")}
+                    className="bg-[#121212] rounded-[24px] p-5 flex-row items-center justify-between border border-zinc-800/50"
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <View className="w-10 h-10 bg-lime-400/10 rounded-2xl items-center justify-center mr-4">
+                        <Ionicons
+                          name="cash-outline"
+                          size={20}
+                          color="#a3e635"
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-white text-base font-myMedium">
+                          Withdraw Funds
+                        </Text>
+                        <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
+                          Transfer to your bank account
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#71717A"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => router.push("/withdrawal-history")}
+                    className="bg-[#121212] rounded-[24px] p-5 flex-row items-center justify-between border border-zinc-800/50"
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <View className="w-10 h-10 bg-white/5 rounded-2xl items-center justify-center mr-4">
+                        <Ionicons
+                          name="time-outline"
+                          size={20}
+                          color="#ffffff"
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-white text-base font-myMedium">
+                          Withdrawal History
+                        </Text>
+                        <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
+                          View past withdrawals
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#71717A"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               {/* Settings Section */}
               <View className="mb-6">

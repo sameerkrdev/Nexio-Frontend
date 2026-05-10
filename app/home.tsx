@@ -353,6 +353,7 @@ export default function HomeScreen() {
                       setIsAssetDropdownOpen(false);
                     }}
                     onTransferPress={() => router.push("/send-choice")}
+                    onWithdrawPress={() => router.push("/withdraw")}
                   />
 
                   <RecentsSection

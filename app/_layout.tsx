@@ -21,6 +21,7 @@ import {
   clearPendingPayment,
 } from "../store/pendingPaymentStore";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const SOLANA_RPC = "https://api.devnet.solana.com";
@@ -46,6 +47,12 @@ function InnerLayout() {
 
     // success-card is a transient post-signup screen — skip the guard entirely
     if (segments[0] === "success-card") return;
+
+    // payment-success is a transient post-payment screen — skip the guard
+    if (segments[0] === "payment-success") return;
+
+    // profile screen is accessible to authenticated users (for Phantom wallet connection)
+    if (segments[0] === "profile") return;
 
     const inAuthGroup =
       segments[0] === "authentication" ||
@@ -79,6 +86,15 @@ function InnerLayout() {
       <Stack.Screen name="payment-success" />
       <Stack.Screen name="activity" />
       <Stack.Screen name="transaction-detail" />
+      <Stack.Screen name="withdraw" />
+      <Stack.Screen name="withdraw-amount" />
+      <Stack.Screen name="withdraw-confirm" />
+      <Stack.Screen name="withdraw-success" />
+      <Stack.Screen name="add-withdrawal-account" />
+      <Stack.Screen name="add-account-form" />
+      <Stack.Screen name="withdrawal-history" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="notification-settings" />
     </Stack>
   );
 }
@@ -107,26 +123,54 @@ export default function Layout() {
   }, [loaded]);
 
   const processUrl = async (url: string) => {
-    // ─── Phantom → onConnect ──────────────────────────────────────
-    if (url.includes("onConnect")) {
-      const { queryParams } = Linking.parse(url);
+    console.log("🔵 RAW INCOMING DEEP LINK:", url);
+    const parsed = Linking.parse(url);
+    const queryParams = parsed.queryParams || {};
 
-      if (!queryParams?.phantom_encryption_public_key) {
-        if (queryParams?.errorCode) {
-          console.log("❌ Phantom connect error:", queryParams.errorCode);
+    let allParams = { ...queryParams };
+    let combinedString = url;
+
+    // In Expo Dev Client, the actual redirect URL might be embedded in `queryParams.url`
+    if (typeof queryParams.url === "string") {
+      const innerParsed = Linking.parse(queryParams.url);
+      allParams = { ...allParams, ...(innerParsed.queryParams || {}) };
+      combinedString += " " + queryParams.url;
+    }
+
+    console.log("🔵 PARSED COMBINED PARAMS:", JSON.stringify(allParams));
+
+    const isConnect =
+      combinedString.includes("onConnect") ||
+      !!allParams.phantom_encryption_public_key;
+
+    const isSignTransaction =
+      combinedString.includes("onSignTransaction") ||
+      (!!allParams.data &&
+        !!allParams.nonce &&
+        !allParams.phantom_encryption_public_key);
+
+    // ─── Phantom → onConnect ──────────────────────────────────────
+    if (isConnect) {
+      console.log("📦 RAW QUERY PARAMS:", JSON.stringify(allParams));
+
+      if (!allParams.phantom_encryption_public_key) {
+        if (allParams.errorCode) {
+          console.log("❌ Phantom connect error:", allParams.errorCode);
         }
         return;
       }
 
       try {
         const keyPair = await getDappKeyPair();
+
         const phantomKey = bs58.decode(
-          queryParams.phantom_encryption_public_key as string,
+          allParams.phantom_encryption_public_key as string,
         );
         const secret = nacl.box.before(phantomKey, keyPair.secretKey);
+
         const payload = decryptPayload(
-          queryParams.data as string,
-          queryParams.nonce as string,
+          allParams.data as string,
+          allParams.nonce as string,
           secret,
         );
 
@@ -137,9 +181,8 @@ export default function Layout() {
           session: payload.session,
         });
 
-        setTimeout(() => {
-          router.replace("/profile");
-        }, 200);
+        console.log("✅ Wallet data set");
+        router.replace("/profile");
       } catch (e) {
         console.error("❌ Phantom connect failed:", e);
       }
@@ -147,11 +190,11 @@ export default function Layout() {
     }
 
     // ─── Phantom → onSignTransaction ─────────────────────────────
-    if (url.includes("onSignTransaction")) {
-      const { queryParams } = Linking.parse(url);
+    if (isSignTransaction) {
+      console.log("🔵 onSignTransaction matched");
 
-      if (queryParams?.errorCode) {
-        console.log("❌ Phantom sign rejected:", queryParams.errorCode);
+      if (allParams.errorCode) {
+        console.log("❌ Phantom sign rejected:", allParams.errorCode);
         router.back();
         return;
       }
@@ -161,18 +204,20 @@ export default function Layout() {
         if (!sharedSecret)
           throw new Error("No shared secret — reconnect Phantom");
 
-        // FIX: guard against null queryParams before destructuring
-        if (!queryParams)
-          throw new Error("Missing query params in onSignTransaction URL");
+        if (!allParams.data || !allParams.nonce)
+          throw new Error("Missing data or nonce in onSignTransaction URL");
 
+        console.log("🔵 Decrypting payload...");
         const decrypted = decryptPayload(
-          queryParams.data as string,
-          queryParams.nonce as string,
+          allParams.data as string,
+          allParams.nonce as string,
           sharedSecret,
         );
+        console.log("✅ Payload decrypted");
 
         // Signed tx comes back in base58 — decode to bytes
         const signedTxBytes = bs58.decode(decrypted.transaction);
+        console.log("🔵 Broadcasting transaction...");
 
         // Broadcast to Solana network
         const connection = new Connection(SOLANA_RPC, "confirmed");
@@ -184,8 +229,14 @@ export default function Layout() {
         console.log("✅ Transaction broadcast:", txHash);
 
         const { paymentId, recipientUsername, currency } = getPendingPayment();
+        console.log("🔵 Pending payment data:", {
+          paymentId,
+          recipientUsername,
+          currency,
+        });
         clearPendingPayment();
 
+        console.log("🔵 Navigating to payment-success...");
         router.replace({
           pathname: "/payment-success",
           params: {
@@ -195,33 +246,35 @@ export default function Layout() {
             currency: currency ?? "",
           },
         });
+        console.log("✅ Navigation complete");
       } catch (e) {
         console.error("❌ Broadcast failed:", e);
         router.back();
       }
       return;
-    } // ← FIX: closing brace for onSignTransaction block was missing here
+    }
 
     // ─── QR Scan → fronteir_payment ─────────────────────────────
     if (
-      url.includes("fronteir_payment") ||
-      url.includes("type=fronteir_payment")
+      combinedString.includes("fronteir_payment") ||
+      combinedString.includes("type=fronteir_payment")
     ) {
-      const { queryParams } = Linking.parse(url);
-
-      if (queryParams && queryParams.type === "fronteir_payment") {
+      if (allParams && allParams.type === "fronteir_payment") {
         router.push({
           pathname: "/send",
           params: {
-            username: (queryParams.username as string) || "",
-            name: (queryParams.name as string) || "",
-            avatar: (queryParams.avatar as string) || "",
-            walletAddress: (queryParams.walletAddress as string) || "",
+            username: (allParams.username as string) || "",
+            name: (allParams.name as string) || "",
+            avatar: (allParams.avatar as string) || "",
+            walletAddress: (allParams.walletAddress as string) || "",
           },
         });
         return;
       }
     }
+
+    // ─── Unmatched URL ───────────────────────────────────────────
+    console.log("⚠️ Unmatched deep link URL:", url);
   };
 
   if (!loaded) return null;
@@ -229,7 +282,9 @@ export default function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <InnerLayout />
+        <NotificationProvider>
+          <InnerLayout />
+        </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

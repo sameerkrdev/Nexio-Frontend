@@ -16,6 +16,7 @@ interface WalletSectionProps {
   onAssetDropdownToggle: () => void;
   onAssetSelect: (symbol: string) => void;
   onTransferPress: () => void;
+  onWithdrawPress: () => void;
 }
 
 export const WalletSection: React.FC<WalletSectionProps> = ({
@@ -26,6 +27,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
   onAssetDropdownToggle,
   onAssetSelect,
   onTransferPress,
+  onWithdrawPress,
 }) => {
   return (
     <View className="mb-0 bg-[#121212]/70 p-4 rounded-[25px] border border-zinc-800/50 flex-row items-center justify-between">
@@ -80,14 +82,23 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
         </Text>
       </View>
 
-      {/* Right: Icon-only Transfer Button */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onTransferPress}
-        className="bg-white w-12 h-12 rounded-2xl items-center justify-center"
-      >
-        <Ionicons name="arrow-up" size={20} color="black" />
-      </TouchableOpacity>
+      {/* Right: Transfer & Withdraw Buttons */}
+      <View className="flex-row gap-2">
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onTransferPress}
+          className="bg-white w-12 h-12 rounded-2xl items-center justify-center"
+        >
+          <Ionicons name="arrow-up" size={20} color="black" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onWithdrawPress}
+          className="bg-zinc-800 w-12 h-12 rounded-2xl items-center justify-center border border-zinc-700"
+        >
+          <Ionicons name="cash-outline" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };

@@ -78,17 +78,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error fetching user:", error);
 
-      // If it's a 401 error (session expired), the API client will handle token refresh
-      // If refresh fails, tokens will be cleared automatically
+      // If it's a network error, server error, or session expired, logout and redirect
+      const isNetworkError = error?.message?.includes("Network error");
+      const isServerError = error?.statusCode >= 500;
       const isSessionExpired =
         error?.statusCode === 401 ||
         error?.message?.includes("Session expired");
 
-      if (isSessionExpired) {
+      if (isNetworkError || isServerError || isSessionExpired) {
         await clearTokens();
+        clearWalletData();
         setUser(null);
         setAuthenticated(false);
-        // Redirect to login if session expired
+        // Redirect to index screen
         router.replace("/");
       }
     }

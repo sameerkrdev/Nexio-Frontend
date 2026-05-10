@@ -8,6 +8,7 @@ import {
   Image,
   ScrollView,
   ImageBackground,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -23,6 +24,7 @@ import { signTransactionWithPhantom } from "../lib/phantom";
 import { getSession, getSharedSecret, useWallet } from "../store/walletStore";
 import { setPendingPayment } from "../store/pendingPaymentStore";
 import { SlideToConfirm } from "../components/SlideToConfirm";
+import { balanceService } from "../services/balance.service";
 
 const TOKEN_ICONS: Record<string, string> = {
   SOL: "https://cryptologos.cc/logos/solana-sol-logo.png",
@@ -52,6 +54,9 @@ export default function PaymentConfirm() {
   const [isSending, setIsSending] = useState(false);
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(true);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [requiredBalance, setRequiredBalance] = useState("0");
+  const [currentBalanceStr, setCurrentBalanceStr] = useState("0");
 
   const baseFiat = parseFloat(fiatAmount ?? "0");
   const platformFeePercent = quote ? parseFloat(quote.platformFeePercent) : 1.5;
@@ -78,13 +83,25 @@ export default function PaymentConfirm() {
     const fetchQuote = async () => {
       try {
         setIsLoadingQuote(true);
+        console.log("Fetching quote for:", {
+          recipientUsername,
+          currency,
+          fiatCurrency,
+        });
         const quoteData = await paymentService.getQuote(
           recipientUsername,
           currency as Currency,
           fiatCurrency || "INR",
         );
+        console.log("Quote received:", quoteData);
         setQuote(quoteData);
       } catch (error: any) {
+        console.error("Quote fetch error:", error);
+        console.error("Error details:", {
+          message: error?.message,
+          statusCode: error?.statusCode,
+          details: error?.details,
+        });
         Alert.alert(
           "Rate Fetch Error",
           error?.message ?? "Failed to fetch live rates. Please try again.",
@@ -120,8 +137,30 @@ export default function PaymentConfirm() {
     }
 
     setIsSending(true);
+
     try {
       const cryptoRate = parseFloat(quote.cryptoPriceInSenderCurrency);
+
+      // Check wallet balance
+      const totalCryptoCost = totalFiat / cryptoRate;
+      let currentBalance = Infinity; // default to skip check for unsupported tokens
+      let balanceStr = "0";
+
+      if (currency === "SOL") {
+        balanceStr = await balanceService.getSolBalance(address);
+        currentBalance = parseFloat(balanceStr);
+      } else if (currency === "ETH") {
+        balanceStr = await balanceService.getEthBalance(address);
+        currentBalance = parseFloat(balanceStr);
+      }
+
+      if (currentBalance < totalCryptoCost) {
+        setRequiredBalance(totalCryptoCost.toFixed(4));
+        setCurrentBalanceStr(currentBalance.toFixed(4));
+        setShowInsufficientModal(true);
+        setIsSending(false);
+        return;
+      }
 
       // Step 1: Create the payment intent on backend with all required parameters
       const intent = await paymentService.createPayment({
@@ -131,6 +170,7 @@ export default function PaymentConfirm() {
         receiverCurrency: quote.receiverCurrency,
         cryptoType: currency as Currency,
         cryptoToSenderRate: cryptoRate,
+        senderToReceiverRate: parseFloat(quote.senderToReceiverRate),
         platformFeePercent: quote.platformFeePercent,
       });
 
@@ -297,10 +337,14 @@ export default function PaymentConfirm() {
               {isSending ? (
                 <View className="w-full h-[72px] rounded-[36px] bg-zinc-900 border border-zinc-800 flex-row items-center justify-center">
                   <ActivityIndicator size="small" color="#ffffff" />
-                  <Text className="text-white text-lg font-myBold mx-3">
+                  <Text className="text-white text-xl font-myBold mx-3">
                     Opening Phantom
                   </Text>
-                  <FontAwesome5 name="ghost" size={20} color="white" />
+                  <Image
+                    source={require("../assets/phantom.png")}
+                    className="w-7 h-7"
+                    resizeMode="contain"
+                  />
                 </View>
               ) : isLoadingQuote || !quote ? (
                 <View className="w-full h-[72px] rounded-[36px] bg-zinc-900 border border-zinc-800 flex-row items-center justify-center">
@@ -330,6 +374,35 @@ export default function PaymentConfirm() {
           </ScrollView>
         </SafeAreaView>
       </ImageBackground>
+
+      {/* Insufficient Balance Modal */}
+      <Modal visible={showInsufficientModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/80 justify-center items-center px-6">
+          <Animated.View
+            entering={FadeInUp.springify()}
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-[32px] p-6 items-center"
+          >
+            <View className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30 items-center justify-center mb-4">
+              <Ionicons name="warning-outline" size={32} color="#EF4444" />
+            </View>
+            <Text className="text-white text-xl font-myBold mb-2 text-center">
+              Insufficient Balance
+            </Text>
+            <Text className="text-zinc-400 font-myMedium text-center mb-6 leading-5">
+              You need {requiredBalance} {currency} to complete this payment,
+              but you only have {currentBalanceStr} {currency} in your wallet.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowInsufficientModal(false)}
+              className="w-full bg-white py-4 rounded-2xl items-center"
+            >
+              <Text className="text-black text-lg font-myBold">Close</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
