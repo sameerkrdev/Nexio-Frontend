@@ -1,7 +1,5 @@
 import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   NotificationData,
@@ -12,7 +10,6 @@ import {
 
 const NOTIFICATION_STORAGE_KEY = "@nexio_notifications";
 const NOTIFICATION_SETTINGS_KEY = "@nexio_notification_settings";
-const PUSH_TOKEN_KEY = "@nexio_push_token";
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -27,7 +24,7 @@ Notifications.setNotificationHandler({
 
 class NotificationService {
   private static instance: NotificationService;
-  private pushToken: string | null = null;
+  private initializePromise: Promise<void> | null = null;
 
   private constructor() {}
 
@@ -39,39 +36,36 @@ class NotificationService {
   }
 
   /**
-   * Initialize notification system
-   * - Request permissions
-   * - Configure Android channels
-   * - Register for push notifications
+   * Initialize the local notification system: Android channels + permissions
+   * for displaying in-app notifications and reacting to taps. Idempotent.
+   *
+   * Push token registration (FCM) was removed — the app only handles
+   * locally-scheduled and in-app notifications now.
    */
-  async initialize(): Promise<string | null> {
-    try {
-      // Configure Android notification channels
-      if (Platform.OS === "android") {
-        await this.setupAndroidChannels();
-      }
-
-      // Request permissions
-      const hasPermission = await this.requestPermissions();
-      if (!hasPermission) {
-        console.warn("Notification permissions not granted");
-        return null;
-      }
-
-      // Register for push notifications
-      const token = await this.registerForPushNotifications();
-      this.pushToken = token;
-
-      // Store token locally
-      if (token) {
-        await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
-      }
-
-      return token;
-    } catch (error) {
-      console.error("Failed to initialize notifications:", error);
-      return null;
+  async initialize(): Promise<void> {
+    if (this.initializePromise) {
+      return this.initializePromise;
     }
+
+    this.initializePromise = (async () => {
+      try {
+        if (Platform.OS === "android") {
+          await this.setupAndroidChannels();
+        }
+
+        const hasPermission = await this.requestPermissions();
+        if (!hasPermission) {
+          console.warn("Notification permissions not granted");
+        }
+      } catch (error) {
+        console.warn(
+          "[Notifications] Failed to initialize:",
+          (error as Error)?.message ?? error,
+        );
+      }
+    })();
+
+    return this.initializePromise;
   }
 
   /**
@@ -140,53 +134,6 @@ class NotificationService {
     } catch (error) {
       console.error("Error requesting notification permissions:", error);
       return false;
-    }
-  }
-
-  /**
-   * Register for Expo push notifications and get token
-   */
-  async registerForPushNotifications(): Promise<string | null> {
-    try {
-      if (!Device.isDevice) {
-        console.warn("Push notifications only work on physical devices");
-        return null;
-      }
-
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-
-      if (!projectId) {
-        console.warn("No Expo project ID found");
-      }
-
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: projectId || undefined,
-      });
-
-      return tokenData.data;
-    } catch (error) {
-      console.error(
-        "Failed to get push token FULL ERROR:",
-        JSON.stringify(error),
-      );
-      console.error("Error message:", (error as Error).message);
-      return null;
-    }
-  }
-
-  /**
-   * Get stored push token
-   */
-  async getPushToken(): Promise<string | null> {
-    if (this.pushToken) return this.pushToken;
-
-    try {
-      const token = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
-      this.pushToken = token;
-      return token;
-    } catch (error) {
-      console.error("Error getting push token:", error);
-      return null;
     }
   }
 

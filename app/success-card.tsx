@@ -28,7 +28,7 @@ export default function SuccessCardScreen() {
             entering={FadeInUp.delay(1300).springify()}
             className="text-zinc-400 text-base font-myMedium text-center max-w-[250px]"
           >
-            Your Nexio account has been successfully generated.
+            Your NexaPay account has been successfully generated.
           </Animated.Text>
         </View>
 

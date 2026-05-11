@@ -16,6 +16,7 @@ import Animated, {
   ZoomIn,
 } from "react-native-reanimated";
 import { paymentService, type Payment } from "../services/payment.service";
+import { openSolanaExplorer } from "../utils/explorer";
 
 type ScreenStatus = "loading" | "success" | "failed" | "pending";
 
@@ -208,6 +209,7 @@ export default function ExternalPaymentSuccess() {
             {txHash && (
               <TouchableOpacity
                 activeOpacity={0.7}
+                onPress={() => openSolanaExplorer(txHash)}
                 className="w-full h-[64px] rounded-[32px] bg-zinc-900/80 border border-zinc-800 flex-row items-center justify-center"
               >
                 <Ionicons name="open-outline" size={18} color="#71717A" />

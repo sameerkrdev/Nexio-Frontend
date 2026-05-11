@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
+import { openSolanaExplorer } from "../utils/explorer";
 
 export default function TransactionDetailScreen() {
   const router = useRouter();
@@ -251,10 +252,7 @@ export default function TransactionDetailScreen() {
               <View className="mb-8">
                 <TouchableOpacity
                   className="bg-white py-4 rounded-2xl items-center mb-3"
-                  onPress={() => {
-                    // Open Solana Explorer
-                    console.log("View on Explorer:", txHash);
-                  }}
+                  onPress={() => openSolanaExplorer(txHash)}
                 >
                   <Text className="text-black text-base font-myBold">
                     View on Solana Explorer

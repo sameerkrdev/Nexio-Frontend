@@ -70,7 +70,7 @@ export default function SendChoiceScreen() {
                       Send to User
                     </Text>
                     <Text className="text-zinc-500 text-sm font-myRegular mt-1">
-                      Instant transfer using Nexio username
+                      Instant transfer using NexaPay username
                     </Text>
                   </View>
                   <View className="w-10 h-10 rounded-full bg-zinc-900/50 items-center justify-center border border-zinc-800">

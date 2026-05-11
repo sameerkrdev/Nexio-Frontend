@@ -171,24 +171,53 @@ export default function ActivityScreen() {
       });
     }
 
-    const username = isSender
-      ? payment.recipientUsername
-      : payment.senderUsername || "unknown";
-    const avatarUrl = `https://robohash.org/${username}?set=set4&size=200x200`;
+    // Display rules per counterparty type — kept in sync with home.tsx:
+    //  - Sender + external recipient  → masked phone as name; no @username row
+    //  - Sender + platform recipient  → recipient's real name + @recipientUsername
+    //  - Receiver (always platform)   → sender's real name + @senderUsername
+    const isExternalCounterparty =
+      isSender && payment.recipientType === "external";
+
+    let displayName: string;
+    let displayUsername: string | null;
+    let avatarSeed: string;
+
+    if (isExternalCounterparty) {
+      const ext = payment.externalRecipient;
+      displayName =
+        ext?.phoneMasked || ext?.displayName || payment.recipientUsername;
+      displayUsername = null;
+      avatarSeed = ext?.phoneNumber || payment.recipientUsername || "external";
+    } else if (isSender) {
+      displayName =
+        payment.recipientName ||
+        capitalizeFirstLetter(payment.recipientUsername);
+      displayUsername = `@${payment.recipientUsername}`;
+      avatarSeed = payment.recipientUsername;
+    } else {
+      const senderUsername = payment.senderUsername || "unknown";
+      displayName =
+        payment.senderName || capitalizeFirstLetter(senderUsername);
+      displayUsername = `@${senderUsername}`;
+      avatarSeed = senderUsername;
+    }
+
+    const avatarUrl = `https://robohash.org/${avatarSeed}?set=set4&size=200x200`;
 
     return {
-      name: capitalizeFirstLetter(username),
-      username: `@${username}`,
+      name: displayName,
+      username: displayUsername,
       type,
       date: dateStr,
       amount: `${isSender ? "-" : "+"}${paymentCurrency === "USD" ? "$" : "₹"}${amount.toFixed(2)}`,
       color,
       icon,
       isCredit: !isSender,
-      isSender, // Add this for consistent color logic
-      amountColor, // Add amount color based on status
-      cryptoIcon: getCryptoIcon(payment.cryptoType), // Add crypto icon
-      avatarUrl, // Add avatar URL
+      isSender,
+      amountColor,
+      cryptoIcon: getCryptoIcon(payment.cryptoType),
+      avatarUrl,
+      isExternal: isExternalCounterparty,
     };
   };
 
@@ -327,18 +356,28 @@ export default function ActivityScreen() {
                           }}
                         >
                           <View className="w-14 h-14 rounded-full items-center justify-center mr-4 overflow-hidden bg-zinc-900 border border-zinc-800">
-                            <Image
-                              source={{ uri: uiTx.avatarUrl }}
-                              className="w-full h-full"
-                            />
+                            {uiTx.isExternal ? (
+                              <Ionicons
+                                name="business"
+                                size={24}
+                                color="white"
+                              />
+                            ) : (
+                              <Image
+                                source={{ uri: uiTx.avatarUrl }}
+                                className="w-full h-full"
+                              />
+                            )}
                           </View>
                           <View className="flex-1">
                             <Text className="text-white text-lg font-myMedium">
                               {uiTx.name}
                             </Text>
-                            <Text className="text-zinc-400 text-sm font-myRegular">
-                              {uiTx.username}
-                            </Text>
+                            {uiTx.username ? (
+                              <Text className="text-zinc-400 text-sm font-myRegular">
+                                {uiTx.username}
+                              </Text>
+                            ) : null}
                             <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
                               {uiTx.type} • {uiTx.date}
                             </Text>

@@ -14,10 +14,8 @@ import {
   NotificationSettings,
   StoredNotification,
 } from "../types/notification.types";
-import { useAuth } from "./AuthContext";
 
 interface NotificationContextType {
-  pushToken: string | null;
   notifications: StoredNotification[];
   unreadCount: number;
   settings: NotificationSettings;
@@ -40,7 +38,6 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 );
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
-  const [pushToken, setPushToken] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [settings, setSettings] = useState<NotificationSettings>({
@@ -54,7 +51,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const router = useRouter();
-  const { isAuthenticated, userId } = useAuth();
 
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
@@ -71,20 +67,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Register push token when user logs in
-  useEffect(() => {
-    if (isAuthenticated && userId && pushToken) {
-      registerPushTokenWithBackend(pushToken, userId);
-    }
-  }, [isAuthenticated, userId, pushToken]);
-
   /**
    * Initialize notification system
    */
   const initializeNotifications = async () => {
     try {
-      const token = await notificationService.initialize();
-      setPushToken(token);
+      await notificationService.initialize();
 
       // Listen for notifications received while app is foregrounded
       notificationListener.current =
@@ -229,32 +217,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   /**
-   * Register push token with backend
-   */
-  const registerPushTokenWithBackend = async (
-    token: string,
-    userId: string,
-  ) => {
-    try {
-      const { Platform } = await import("react-native");
-      const deviceInfo = {
-        platform: Platform.OS,
-        deviceId: undefined, // Can be added with expo-device
-        deviceName: undefined,
-      };
-
-      // Import the API service
-      const { pushNotificationApiService } =
-        await import("../services/push-notification-api.service");
-
-      await pushNotificationApiService.registerPushToken(token, deviceInfo);
-      console.log("Push token registered with backend successfully");
-    } catch (error) {
-      console.error("Failed to register push token:", error);
-    }
-  };
-
-  /**
    * Refresh notifications
    */
   const refreshNotifications = async () => {
@@ -319,7 +281,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   return (
     <NotificationContext.Provider
       value={{
-        pushToken,
         notifications,
         unreadCount,
         settings,

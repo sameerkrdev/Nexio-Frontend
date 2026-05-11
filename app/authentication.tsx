@@ -99,7 +99,7 @@ export default function Authentication() {
                 Welcome{"\n"}Back!
               </Text>
               <Text className="text-zinc-400 text-base font-myMedium mt-4 max-w-[200px] leading-6">
-                Log in to your Nexio account and take control of your finances.
+                Log in to your NexaPay account and take control of your finances.
               </Text>
             </View>
 

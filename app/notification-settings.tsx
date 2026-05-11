@@ -14,7 +14,7 @@ import { useNotifications } from "../hooks/useNotifications";
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
-  const { settings, updateSettings, pushToken } = useNotifications();
+  const { settings, updateSettings } = useNotifications();
 
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -60,16 +60,6 @@ export default function NotificationSettingsScreen() {
       </View>
 
       <ScrollView className="flex-1">
-        {/* Push Token Info */}
-        {pushToken && (
-          <View className="bg-white px-4 py-3 mb-2">
-            <Text className="text-xs text-gray-500 mb-1">Push Token</Text>
-            <Text className="text-xs text-gray-400 font-mono" numberOfLines={1}>
-              {pushToken}
-            </Text>
-          </View>
-        )}
-
         {/* Master Toggle */}
         <View className="bg-white px-4 py-4 mb-2">
           <View className="flex-row items-center justify-between">

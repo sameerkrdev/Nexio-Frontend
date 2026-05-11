@@ -17,6 +17,13 @@ export const balanceService = {
   },
 
   getEthBalance: async (address: string): Promise<string> => {
+    // Phantom wallets are Solana (base58, not hex). Skip the RPC call entirely
+    // if the address isn't a valid Ethereum address — otherwise the node returns
+    // a -32602 error and we waste a roundtrip on every render.
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return "0.0000";
+    }
+
     try {
       const response = await fetch(ETHEREUM_RPC, {
         method: "POST",
@@ -29,10 +36,9 @@ export const balanceService = {
         }),
       });
       const data = await response.json();
-      console.log("ETH response:", JSON.stringify(data)); // ← debug log
 
       if (data.result) {
-        const balanceWei = BigInt(data.result); // ← use BigInt not parseInt
+        const balanceWei = BigInt(data.result);
         const balanceEth = Number(balanceWei) / 1e18;
         return balanceEth.toFixed(4);
       }

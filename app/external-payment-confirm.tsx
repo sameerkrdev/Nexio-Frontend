@@ -342,7 +342,7 @@ export default function ExternalPaymentConfirm() {
                 style={{ marginTop: 1 }}
               />
               <Text className="text-zinc-600 text-xs font-myMedium ml-2 flex-1 leading-5">
-                Your crypto goes to Nexio's Solana wallet. Once confirmed
+                Your crypto goes to NexaPay's Solana wallet. Once confirmed
                 on-chain, we initiate a {methodLabel} payout to the recipient.
               </Text>
             </Animated.View>

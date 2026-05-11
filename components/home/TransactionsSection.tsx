@@ -11,7 +11,8 @@ import { type Payment } from "../../services/payment.service";
 
 interface TransactionUI {
   name: string;
-  username: string;
+  /** null when the counterparty is an external bank recipient (no NexaPay handle). */
+  username: string | null;
   type: string;
   date: string;
   amount: string;
@@ -21,6 +22,7 @@ interface TransactionUI {
   amountColor: string;
   cryptoIcon: string;
   avatarUrl: string;
+  isExternal?: boolean;
 }
 
 interface TransactionsSectionProps {
@@ -76,18 +78,24 @@ export const TransactionsSection: React.FC<TransactionsSectionProps> = ({
                 onPress={() => onTransactionPress?.(payment)}
               >
                 <View className="w-14 h-14 rounded-full items-center justify-center mr-4 overflow-hidden bg-zinc-900 border border-zinc-800">
-                  <Image
-                    source={{ uri: uiTx.avatarUrl }}
-                    className="w-full h-full"
-                  />
+                  {uiTx.isExternal ? (
+                    <Ionicons name="business" size={24} color="white" />
+                  ) : (
+                    <Image
+                      source={{ uri: uiTx.avatarUrl }}
+                      className="w-full h-full"
+                    />
+                  )}
                 </View>
                 <View className="flex-1">
                   <Text className="text-white text-lg font-myMedium">
                     {uiTx.name}
                   </Text>
-                  <Text className="text-zinc-400 text-sm font-myRegular">
-                    {uiTx.username}
-                  </Text>
+                  {uiTx.username ? (
+                    <Text className="text-zinc-400 text-sm font-myRegular">
+                      {uiTx.username}
+                    </Text>
+                  ) : null}
                   <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
                     {uiTx.type} • {uiTx.date}
                   </Text>

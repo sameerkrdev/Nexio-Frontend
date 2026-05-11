@@ -38,12 +38,25 @@ export interface CreatePaymentResponse {
   expiresAt: string;
 }
 
+export interface ExternalRecipientSummary {
+  id: string;
+  phoneMasked: string | null;
+  phoneNumber: string;
+  method: string;
+  displayName: string;
+}
+
 export interface Payment {
   id: string;
   senderId: string;
   senderUsername?: string; // Username of the sender
+  senderName?: string; // Display name of the sender
   recipientUsername: string;
+  recipientName?: string | null; // Display name of the recipient (platform only)
   recipientUserId: string;
+  recipientType?: "platform" | "external";
+  externalRecipientId?: string | null;
+  externalRecipient?: ExternalRecipientSummary | null;
   cryptoType: string;
   cryptoAmount: string;
   platformFeeAmount: string;

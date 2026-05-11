@@ -261,23 +261,52 @@ export default function HomeScreen() {
       });
     }
 
-    const username = isSender
-      ? payment.recipientUsername
-      : payment.senderUsername || "unknown";
-    const avatarUrl = `https://robohash.org/${username}?set=set4&size=200x200`;
+    // Display rules per counterparty type:
+    //  - Sender + external recipient  → masked phone as name; no @username row
+    //  - Sender + platform recipient  → recipient's real name + @recipientUsername
+    //  - Receiver (always platform)   → sender's real name + @senderUsername
+    const isExternalCounterparty =
+      isSender && payment.recipientType === "external";
+
+    let displayName: string;
+    let displayUsername: string | null;
+    let avatarSeed: string;
+
+    if (isExternalCounterparty) {
+      const ext = payment.externalRecipient;
+      displayName =
+        ext?.phoneMasked || ext?.displayName || payment.recipientUsername;
+      displayUsername = null;
+      avatarSeed = ext?.phoneNumber || payment.recipientUsername || "external";
+    } else if (isSender) {
+      displayName =
+        payment.recipientName ||
+        capitalizeFirstLetter(payment.recipientUsername);
+      displayUsername = `@${payment.recipientUsername}`;
+      avatarSeed = payment.recipientUsername;
+    } else {
+      const senderUsername = payment.senderUsername || "unknown";
+      displayName =
+        payment.senderName || capitalizeFirstLetter(senderUsername);
+      displayUsername = `@${senderUsername}`;
+      avatarSeed = senderUsername;
+    }
+
+    const avatarUrl = `https://robohash.org/${avatarSeed}?set=set4&size=200x200`;
 
     return {
-      name: capitalizeFirstLetter(username),
-      username: `@${username}`,
+      name: displayName,
+      username: displayUsername,
       type,
       date: dateStr,
       amount: `${isSender ? "-" : "+"}${paymentCurrency === "USD" ? "$" : "₹"}${amount.toFixed(2)}`,
       color,
       icon,
-      isSender, // Add this to determine text color
-      amountColor, // Add amount color based on status
-      cryptoIcon: getCryptoIcon(payment.cryptoType), // Add crypto icon
-      avatarUrl, // Add avatar URL
+      isSender,
+      amountColor,
+      cryptoIcon: getCryptoIcon(payment.cryptoType),
+      avatarUrl,
+      isExternal: isExternalCounterparty,
     };
   };
 

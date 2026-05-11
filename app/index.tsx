@@ -39,7 +39,7 @@ export default function Home() {
             Finance Made{"\n"}Fast & Simple
           </Text> */}
           <Text className="text-gray-300 font-myMedium text-center mt-4 text-lg leading-6 px-4">
-            Nexio is your all-in-one money app to send, manage and move money
+            NexaPay is your all-in-one money app to send, manage and move money
             globally with ease.
           </Text>
         </View>

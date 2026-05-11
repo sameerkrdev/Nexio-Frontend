@@ -26,7 +26,7 @@ export default function Signup() {
                 Create{"\n"}Account
               </Text>
               <Text className="text-zinc-400 text-base font-myMedium mt-4 max-w-[220px] leading-6">
-                Join Nexio and start your journey to financial freedom.
+                Join NexaPay and start your journey to financial freedom.
               </Text>
             </View>
 

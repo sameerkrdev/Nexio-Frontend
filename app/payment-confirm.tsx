@@ -327,7 +327,7 @@ export default function PaymentConfirm() {
                 style={{ marginTop: 1 }}
               />
               <Text className="text-zinc-600 text-xs font-myMedium ml-2 flex-1 leading-5">
-                Crypto goes to Nexio's custody wallet on Solana. The recipient's
+                Crypto goes to NexaPay's custody wallet on Solana. The recipient's
                 INR balance is credited instantly after blockchain confirmation.
               </Text>
             </Animated.View>
