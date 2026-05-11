@@ -99,6 +99,13 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     console.log(`[API] Requesting: ${options.method} ${url}`);
 
+    // A request is "authenticated" only if it actually carried an Authorization header.
+    // 401s on unauthenticated requests (login, send-otp, verify-otp, etc.) are NOT
+    // expired-token errors — they're credential/validation errors from the backend
+    // and must surface to the caller as-is.
+    const headers = options.headers as Record<string, string> | undefined;
+    const wasAuthenticatedRequest = Boolean(headers?.["Authorization"]);
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -110,10 +117,11 @@ class ApiClient {
 
       const data = await response.json();
 
-      // Handle 401 Unauthorized - token expired
+      // Handle 401 Unauthorized — only refresh when an access token was actually used
       if (
         response.status === 401 &&
         retryCount === 0 &&
+        wasAuthenticatedRequest &&
         endpoint !== "/auth/refresh"
       ) {
         console.log("[API] 401 Unauthorized - attempting token refresh");

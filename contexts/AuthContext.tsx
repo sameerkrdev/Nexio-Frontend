@@ -50,10 +50,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const isAuth = await isAuthenticated();
 
       if (isAuth) {
+        // fetchUser owns auth state from here on — it sets `authenticated` true on
+        // success or clears tokens + sets false on 401/network/server errors.
+        // Do NOT re-assign `authenticated` after this call.
         await fetchUser();
+      } else {
+        setAuthenticated(false);
       }
-
-      setAuthenticated(isAuth);
     } catch (error) {
       console.error("Error checking auth status:", error);
       setAuthenticated(false);

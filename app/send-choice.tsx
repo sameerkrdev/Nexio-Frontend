@@ -84,30 +84,22 @@ export default function SendChoiceScreen() {
                 {/* Option: Send to Bank */}
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => {}}
-                  className="flex-row items-center opacity-50"
-                  disabled
+                  onPress={() => router.push("/send-external-recipient")}
+                  className="flex-row items-center"
                 >
-                  <View className="w-16 h-16 rounded-3xl bg-zinc-900 border border-zinc-800 items-center justify-center mr-5">
-                    <Ionicons name="business" size={28} color="#52525B" />
+                  <View className="w-16 h-16 rounded-3xl bg-white items-center justify-center mr-5 shadow-lg shadow-white/10">
+                    <Ionicons name="business" size={28} color="black" />
                   </View>
                   <View className="flex-1">
-                    <View className="flex-row items-center">
-                      <Text className="text-zinc-400 text-lg font-myMedium">
-                        Send to Bank
-                      </Text>
-                      <View className="bg-zinc-800/80 px-2 py-0.5 rounded-md ml-2 border border-zinc-700/50">
-                        <Text className="text-zinc-500 text-[10px] font-myMedium uppercase tracking-widest">
-                          Soon
-                        </Text>
-                      </View>
-                    </View>
-                    <Text className="text-zinc-600 text-sm font-myRegular mt-1">
-                      Direct deposit to bank accounts
+                    <Text className="text-white text-lg font-myMedium">
+                      Send to Bank
+                    </Text>
+                    <Text className="text-zinc-500 text-sm font-myRegular mt-1">
+                      Direct deposit to anyone's bank or UPI
                     </Text>
                   </View>
-                  <View className="w-10 h-10 rounded-full bg-transparent items-center justify-center">
-                    <Ionicons name="lock-closed" size={16} color="#3F3F46" />
+                  <View className="w-10 h-10 rounded-full bg-zinc-900/50 items-center justify-center border border-zinc-800">
+                    <Ionicons name="chevron-forward" size={18} color="white" />
                   </View>
                 </TouchableOpacity>
               </View>

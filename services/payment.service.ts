@@ -2,6 +2,25 @@ import { apiClient } from "./api";
 
 export type Currency = "SOL" | "USDT" | "USDC" | "LINK";
 
+export type ExternalPaymentMethod =
+  | "UPI"
+  | "BANK_TRANSFER"
+  | "IMPS"
+  | "NEFT"
+  | "ZELLE"
+  | "ACH"
+  | "WIRE"
+  | "FASTER_PAYMENTS"
+  | "SEPA"
+  | "SEPA_INSTANT"
+  | "PAYNOW"
+  | "FAST"
+  | "ZENGIN"
+  | "OSKO"
+  | "NPP"
+  | "INTERAC"
+  | "EFT";
+
 export interface FeeBreakdown {
   baseAmount: string;
   networkFee: string;
@@ -68,6 +87,27 @@ export interface CreatePaymentParams {
   cryptoToSenderRate: number; // Current rate: 1 crypto = X fiat
   senderToReceiverRate: number; // Fiat conversion rate from quote
   platformFeePercent: string; // e.g., "1.5"
+}
+
+export interface CreateExternalPaymentParams {
+  receiverPhone: string; // E.164 format with country code, e.g. "+919876543210"
+  receiverPaymentMethod: ExternalPaymentMethod;
+  receiverPaymentDetails: Record<string, string>;
+  senderCurrencyAmount: string;
+  senderCurrency: string;
+  receiverCurrency: string;
+  cryptoType: Currency;
+  cryptoToSenderRate: number;
+  senderToReceiverRate: number;
+  platformFeePercent: string;
+}
+
+export interface CreateExternalPaymentResponse {
+  paymentId: string;
+  recipientUsername: string; // Backend uses phone as username for external recipients
+  feeBreakdown: FeeBreakdown;
+  transaction: string;
+  expiresAt: string;
 }
 
 class PaymentService {
@@ -146,6 +186,7 @@ class PaymentService {
     const response = await apiClient.post<CreatePaymentResponse>(
       "/payments/initiate",
       {
+        recipientType: "platform",
         recipientUsername,
         cryptoType: cryptoType.toUpperCase(),
         cryptoAmount,
@@ -161,6 +202,90 @@ class PaymentService {
         platformFeePercent: platformFeePercent,
       },
       true, // authenticated
+    );
+    return response.data!;
+  }
+
+  /**
+   * Get a live quote for an EXTERNAL bank transfer (receiver is identified by phone).
+   * Backend detects country from phone → resolves currency + available payment methods.
+   */
+  async getExternalQuote(
+    receiverPhone: string,
+    cryptoType: Currency,
+    senderCurrency: string,
+  ): Promise<PaymentQuote> {
+    const response = await apiClient.get<PaymentQuote>(
+      `/payments/quote?crypto=${cryptoType}&senderCurrency=${senderCurrency}&receiverPhone=${encodeURIComponent(receiverPhone)}`,
+      true,
+    );
+    return response.data!;
+  }
+
+  /**
+   * Create an EXTERNAL payment intent — funds will be paid out to the receiver's bank.
+   * Returns an unsigned Solana transaction the sender signs to deposit crypto into Nexio's custody wallet.
+   * After on-chain confirmation, backend triggers async payout via mock provider.
+   */
+  async createExternalPayment(
+    params: CreateExternalPaymentParams,
+  ): Promise<CreateExternalPaymentResponse> {
+    const {
+      receiverPhone,
+      receiverPaymentMethod,
+      receiverPaymentDetails,
+      senderCurrencyAmount,
+      senderCurrency,
+      receiverCurrency,
+      cryptoType,
+      cryptoToSenderRate,
+      senderToReceiverRate,
+      platformFeePercent,
+    } = params;
+
+    const senderAmount = parseFloat(senderCurrencyAmount);
+    const cryptoRate = cryptoToSenderRate;
+    const fiatRate = senderToReceiverRate;
+    const feePercent = parseFloat(platformFeePercent);
+
+    const platformFeeAmountRaw = (senderAmount * feePercent) / 100;
+    const platformFeeAmount = (
+      Math.floor(platformFeeAmountRaw * 100) / 100
+    ).toFixed(2);
+
+    const cryptoAmountRaw = senderAmount / cryptoRate;
+    const cryptoAmount = cryptoAmountRaw.toFixed(9);
+
+    const platformFeeCryptoRaw = platformFeeAmountRaw / cryptoRate;
+    const platformFeeCrypto = platformFeeCryptoRaw.toFixed(9);
+
+    const totalCryptoAmountRaw = cryptoAmountRaw + platformFeeCryptoRaw;
+    const totalCryptoAmount = totalCryptoAmountRaw.toFixed(9);
+
+    const receiverCurrencyAmountRaw = senderAmount * fiatRate;
+    const receiverCurrencyAmount = receiverCurrencyAmountRaw.toFixed(2);
+
+    const response = await apiClient.post<CreateExternalPaymentResponse>(
+      "/payments/initiate",
+      {
+        recipientType: "external",
+        receiverPhone,
+        receiverPaymentMethod,
+        receiverPaymentDetails,
+        cryptoType: cryptoType.toUpperCase(),
+        cryptoAmount,
+        platformFeeAmount,
+        platformFeeCrypto,
+        totalCryptoAmount,
+        senderCurrency: senderCurrency.toUpperCase(),
+        senderCurrencyAmount,
+        receiverCurrency: receiverCurrency.toUpperCase(),
+        receiverCurrencyAmount,
+        cryptoToSenderRate: cryptoRate.toString(),
+        senderToReceiverRate: fiatRate.toString(),
+        platformFeePercent: platformFeePercent,
+      },
+      true,
     );
     return response.data!;
   }

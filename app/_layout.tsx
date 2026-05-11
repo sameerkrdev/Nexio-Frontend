@@ -50,9 +50,16 @@ function InnerLayout() {
 
     // payment-success is a transient post-payment screen — skip the guard
     if (segments[0] === "payment-success") return;
+    if (segments[0] === "external-payment-success") return;
 
     // profile screen is accessible to authenticated users (for Phantom wallet connection)
     if (segments[0] === "profile") return;
+
+    // OTP screens handle their own post-auth navigation (signup → success-card,
+    // login → home). Skipping the guard here prevents the race where auth flips
+    // to true while still on /otp, causing the layout to redirect to /home
+    // before the screen's own router.replace to /success-card runs.
+    if (segments[0] === "otp" || segments[0] === "otp-login") return;
 
     const inAuthGroup =
       segments[0] === "authentication" ||
@@ -84,6 +91,10 @@ function InnerLayout() {
       <Stack.Screen name="search-user" />
       <Stack.Screen name="payment-confirm" />
       <Stack.Screen name="payment-success" />
+      <Stack.Screen name="send-external-recipient" />
+      <Stack.Screen name="send-external" />
+      <Stack.Screen name="external-payment-confirm" />
+      <Stack.Screen name="external-payment-success" />
       <Stack.Screen name="activity" />
       <Stack.Screen name="transaction-detail" />
       <Stack.Screen name="withdraw" />
@@ -228,24 +239,44 @@ export default function Layout() {
 
         console.log("✅ Transaction broadcast:", txHash);
 
-        const { paymentId, recipientUsername, currency } = getPendingPayment();
+        const {
+          paymentId,
+          recipientUsername,
+          currency,
+          type,
+          recipientDisplayName,
+        } = getPendingPayment();
         console.log("🔵 Pending payment data:", {
           paymentId,
           recipientUsername,
           currency,
+          type,
         });
         clearPendingPayment();
 
-        console.log("🔵 Navigating to payment-success...");
-        router.replace({
-          pathname: "/payment-success",
-          params: {
-            paymentId: paymentId ?? "",
-            txHash,
-            recipientUsername: recipientUsername ?? "",
-            currency: currency ?? "",
-          },
-        });
+        if (type === "external") {
+          console.log("🔵 Navigating to external-payment-success...");
+          router.replace({
+            pathname: "/external-payment-success",
+            params: {
+              paymentId: paymentId ?? "",
+              txHash,
+              recipientDisplayPhone: recipientDisplayName ?? recipientUsername ?? "",
+              currency: currency ?? "",
+            },
+          });
+        } else {
+          console.log("🔵 Navigating to payment-success...");
+          router.replace({
+            pathname: "/payment-success",
+            params: {
+              paymentId: paymentId ?? "",
+              txHash,
+              recipientUsername: recipientUsername ?? "",
+              currency: currency ?? "",
+            },
+          });
+        }
         console.log("✅ Navigation complete");
       } catch (e) {
         console.error("❌ Broadcast failed:", e);
