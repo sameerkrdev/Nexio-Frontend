@@ -24,7 +24,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.client"
+      "package": "com.anonymous.client",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +34,14 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-router",
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-notifications"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2488d62a-169f-47fe-9b22-9e0d0dec238f"
+      }
+    }
   }
 }

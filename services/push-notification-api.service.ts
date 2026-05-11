@@ -14,10 +14,14 @@ class PushNotificationApiService {
     },
   ): Promise<void> {
     try {
-      await apiClient.post("/notifications/register-token", {
-        pushToken: token,
-        ...deviceInfo,
-      });
+      await apiClient.post(
+        "/notifications/register-token",
+        {
+          pushToken: token,
+          ...deviceInfo,
+        },
+        true, // authenticated
+      );
     } catch (error) {
       console.error("Failed to register push token:", error);
       throw error;
@@ -29,9 +33,13 @@ class PushNotificationApiService {
    */
   async unregisterPushToken(token: string): Promise<void> {
     try {
-      await apiClient.post("/notifications/unregister-token", {
-        pushToken: token,
-      });
+      await apiClient.post(
+        "/notifications/unregister-token",
+        {
+          pushToken: token,
+        },
+        true, // authenticated
+      );
     } catch (error) {
       console.error("Failed to unregister push token:", error);
       throw error;
@@ -47,7 +55,7 @@ class PushNotificationApiService {
     promotional?: boolean;
   }): Promise<void> {
     try {
-      await apiClient.put("/notifications/preferences", preferences);
+      await apiClient.patch("/notifications/preferences", preferences, true); // authenticated
     } catch (error) {
       console.error("Failed to update notification preferences:", error);
       throw error;
@@ -63,9 +71,13 @@ class PushNotificationApiService {
     type?: string;
   }): Promise<any> {
     try {
-      const response = await apiClient.get("/notifications/history", {
-        params,
-      });
+      const queryString = params
+        ? `?${new URLSearchParams(params as any).toString()}`
+        : "";
+      const response = await apiClient.get(
+        `/notifications/history${queryString}`,
+        true, // authenticated
+      );
       return response.data;
     } catch (error) {
       console.error("Failed to get notification history:", error);
@@ -78,7 +90,7 @@ class PushNotificationApiService {
    */
   async markAsRead(notificationId: string): Promise<void> {
     try {
-      await apiClient.put(`/notifications/${notificationId}/read`);
+      await apiClient.patch(`/notifications/${notificationId}/read`, {}, true); // authenticated
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
       throw error;
@@ -90,7 +102,7 @@ class PushNotificationApiService {
    */
   async sendTestNotification(type: string): Promise<void> {
     try {
-      await apiClient.post("/notifications/test", { type });
+      await apiClient.post("/notifications/test", { type }, true); // authenticated
     } catch (error) {
       console.error("Failed to send test notification:", error);
       throw error;

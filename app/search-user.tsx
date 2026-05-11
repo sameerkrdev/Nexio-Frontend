@@ -216,7 +216,7 @@ export default function SearchUserScreen() {
                 autoFocus
                 autoCapitalize="none"
               />
-              {isLoading && <ActivityIndicator size="small" color="#A3E635" />}
+              {isLoading && <ActivityIndicator size="small" color="white" />}
               {!isLoading && search.length > 0 && (
                 <TouchableOpacity onPress={() => handleSearch("")}>
                   <Ionicons name="close-circle" size={20} color="#71717A" />

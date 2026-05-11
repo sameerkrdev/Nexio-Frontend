@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "339963288450",
+    "project_id": "nexapay-6e2d9",
+    "storage_bucket": "nexapay-6e2d9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:339963288450:android:1ca57b264401e26ddc0d9b",
+        "android_client_info": {
+          "package_name": "com.anonymous.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOEFjazjEQpYDytX4Swx5CKM28FhJanVs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

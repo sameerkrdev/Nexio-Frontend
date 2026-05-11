@@ -20,6 +20,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -163,7 +165,11 @@ class NotificationService {
 
       return tokenData.data;
     } catch (error) {
-      console.error("Failed to get push token:", error);
+      console.error(
+        "Failed to get push token FULL ERROR:",
+        JSON.stringify(error),
+      );
+      console.error("Error message:", (error as Error).message);
       return null;
     }
   }
@@ -203,7 +209,13 @@ class NotificationService {
         sound: "default",
         ...(Platform.OS === "android" && { channelId }),
       },
-      trigger: seconds > 0 ? { seconds } : null,
+      trigger:
+        seconds > 0
+          ? {
+              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+              seconds,
+            }
+          : null,
     });
   }
 

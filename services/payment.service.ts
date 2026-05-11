@@ -122,7 +122,10 @@ class PaymentService {
 
     // Calculate platform fee in fiat (keep full precision until final step)
     const platformFeeAmountRaw = (senderAmount * feePercent) / 100;
-    const platformFeeAmount = platformFeeAmountRaw.toFixed(2);
+    // Use Math.floor to round down to 2 decimals to match backend behavior
+    const platformFeeAmount = (
+      Math.floor(platformFeeAmountRaw * 100) / 100
+    ).toFixed(2);
 
     // Calculate crypto amount (base amount without fee)
     const cryptoAmountRaw = senderAmount / cryptoRate;
