@@ -132,7 +132,7 @@ export default function AddAccountFormScreen() {
       }
 
       await addAccount.mutateAsync(accountData);
-      Alert.alert("Success! 🎉", "Withdrawal account added successfully", [
+      Alert.alert("Success!", "Withdrawal account added successfully", [
         {
           text: "Done",
           onPress: () => router.replace("/withdraw"),

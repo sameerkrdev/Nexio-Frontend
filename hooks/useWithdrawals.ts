@@ -3,6 +3,7 @@ import {
   withdrawalService,
   type WithdrawalStatus,
 } from "../services/withdrawal.service";
+import { useAuth } from "../contexts/AuthContext";
 
 export const useAvailableMethods = () => {
   return useQuery({
@@ -54,6 +55,7 @@ export const useRemoveAccount = () => {
 
 export const useCreateWithdrawal = () => {
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   return useMutation({
     mutationFn: ({
       accountId,
@@ -64,9 +66,14 @@ export const useCreateWithdrawal = () => {
       amount: number;
       note?: string;
     }) => withdrawalService.createWithdrawal(accountId, amount, note),
-    onSuccess: () => {
+    // onSettled runs after BOTH success and failure — invalidate the history
+    // list and refetch the user (so withdraw.tsx's wallet.balance updates).
+    // We refresh on failure too because the backend may have partially
+    // committed (e.g. debited the wallet) before the request errored.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      refreshUser();
     },
   });
 };

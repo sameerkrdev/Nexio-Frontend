@@ -21,8 +21,6 @@ export default function WithdrawScreen() {
   const { data: accounts, isLoading, error } = useWithdrawalAccounts();
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
-  console.log(accounts);
-
   console.log("Withdrawal accounts data:", accounts);
   console.log("Withdrawal accounts loading:", isLoading);
   console.log("Withdrawal accounts error:", error);
