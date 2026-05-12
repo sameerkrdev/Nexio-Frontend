@@ -9,6 +9,7 @@ interface BalanceCardProps {
   userName?: string;
   userUsername?: string;
   onViewBalancePress: () => void;
+  onAddMoneyPress?: () => void;
 }
 
 export const BalanceCard: React.FC<BalanceCardProps> = ({
@@ -18,6 +19,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   userName,
   userUsername,
   onViewBalancePress,
+  onAddMoneyPress,
 }) => {
   return (
     <View className="mb-4">
@@ -27,7 +29,19 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         imageStyle={{ borderRadius: 32 }}
         resizeMode="cover"
       >
-        <View className="absolute top-10 right-6 z-50">
+        <View className="absolute top-10 right-6 z-50 flex-row items-center gap-2">
+          {/* {onAddMoneyPress ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={onAddMoneyPress}
+              className="bg-white/95 px-3 py-1.5 rounded-xl flex-row items-center"
+            >
+              <Ionicons name="add" size={14} color="#000000" />
+              <Text className="text-black text-xs font-myBold ml-1">
+                Add Money
+              </Text>
+            </TouchableOpacity>
+          ) : null} */}
           <View className="bg-black/30 px-3 py-1.5 rounded-xl flex-row items-center border border-white/10">
             <Text className="text-white text-xs font-myMedium">
               {currency === "INR" && "🇮🇳 INR"}

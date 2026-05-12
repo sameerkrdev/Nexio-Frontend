@@ -61,6 +61,17 @@ function InnerLayout() {
     // before the screen's own router.replace to /success-card runs.
     if (segments[0] === "otp" || segments[0] === "otp-login") return;
 
+    // Phantom callback stubs — these are entered for ~milliseconds while the
+    // Linking listener decrypts the payload and router.replace's to the real
+    // destination (/profile or /payment-success). Skip the guard so we don't
+    // bounce out of them before that completes.
+    if (segments[0] === "onConnect" || segments[0] === "onSignTransaction") {
+      return;
+    }
+
+    // Dodo return_url stub for the subscription flow — see app/subscription-success.tsx
+    if (segments[0] === "subscription-success") return;
+
     const inAuthGroup =
       segments[0] === "authentication" ||
       segments[0] === "signup" ||
@@ -88,6 +99,7 @@ function InnerLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="send" />
       <Stack.Screen name="send-choice" />
+      <Stack.Screen name="add-money" />
       <Stack.Screen name="search-user" />
       <Stack.Screen name="payment-confirm" />
       <Stack.Screen name="payment-success" />
@@ -106,6 +118,10 @@ function InnerLayout() {
       <Stack.Screen name="withdrawal-history" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="notification-settings" />
+      <Stack.Screen name="onConnect" />
+      <Stack.Screen name="onSignTransaction" />
+      <Stack.Screen name="subscription" />
+      <Stack.Screen name="subscription-success" />
     </Stack>
   );
 }

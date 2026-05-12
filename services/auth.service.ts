@@ -23,6 +23,8 @@ export interface User {
   phoneNumber: string;
   email: string | null;
   solanaPublicKey: string | null;
+  subscriptionExpiresAt: string | null;
+  isPremium: boolean;
   createdAt: string;
   wallet: {
     balance: string;

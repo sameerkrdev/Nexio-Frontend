@@ -72,12 +72,15 @@ class NotificationService {
    * Setup Android notification channels with high importance
    */
   private async setupAndroidChannels(): Promise<void> {
+    // NOTE: do NOT pass `sound: "default"` here — expo-notifications interprets
+    // any string as a custom filename and emits `Custom sound "default" not
+    // found in native app`. Omitting the `sound` field makes the channel use
+    // the OS default notification sound, which is what we actually want.
     await Notifications.setNotificationChannelAsync("payment", {
       name: "Payment Notifications",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#10B981",
-      sound: "default",
       enableVibrate: true,
       showBadge: true,
     });
@@ -87,7 +90,6 @@ class NotificationService {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 250, 500],
       lightColor: "#EF4444",
-      sound: "default",
       enableVibrate: true,
       showBadge: true,
     });
@@ -97,7 +99,6 @@ class NotificationService {
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250],
       lightColor: "#3B82F6",
-      sound: "default",
       enableVibrate: true,
       showBadge: true,
     });
@@ -153,7 +154,9 @@ class NotificationService {
         title,
         body,
         data,
-        sound: "default",
+        // boolean `true` = use OS default sound. Avoid the string "default"
+        // which expo-notifications looks up as a custom filename.
+        sound: true,
         ...(Platform.OS === "android" && { channelId }),
       },
       trigger:

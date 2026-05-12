@@ -19,7 +19,7 @@ export const WalletQRCode = ({
 }: Props) => {
   // Use a deep link URL instead of raw JSON so it actually opens the app when scanned
   // The user's layout listener expects query params
-  // const qrData = `myapp://send?type=fronteir_payment&username=${encodeURIComponent(username || "")}&name=${encodeURIComponent(name || "")}&avatar=${encodeURIComponent(avatar || "")}&walletAddress=${encodeURIComponent(walletAddress || "")}`;
+  const qrData = `myapp://send?type=fronteir_payment&username=${encodeURIComponent(username || "")}&name=${encodeURIComponent(name || "")}&avatar=${encodeURIComponent(avatar || "")}&walletAddress=${encodeURIComponent(walletAddress || "")}`;
 
   return (
     <View className="items-center">
@@ -33,9 +33,7 @@ export const WalletQRCode = ({
         }}
       >
         <QRCode
-          value={
-            "https://sjkdksjndkjsndsjkdhskjdhjkshdksdkjshdkjshskjdksjdhkjs"
-          }
+          value={qrData}
           size={size ?? 200}
           color="#000000"
           backgroundColor="white"

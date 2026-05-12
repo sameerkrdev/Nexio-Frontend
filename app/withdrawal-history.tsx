@@ -256,6 +256,7 @@ export default function WithdrawalHistoryScreen() {
                           </Text>
                         </View>
                       </View>
+
                     </TouchableOpacity>
                   ))}
                 </View>

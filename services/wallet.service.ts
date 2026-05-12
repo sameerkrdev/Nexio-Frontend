@@ -35,6 +35,13 @@ export interface WalletTransactionsResponse {
   totalPages: number;
 }
 
+export interface CreateTopUpResponse {
+  checkoutUrl: string;
+  paymentId: string;
+  expiresAt: string | null;
+  totalAmount: number;
+}
+
 class WalletService {
   /**
    * Get wallet transactions with pagination
@@ -56,6 +63,24 @@ class WalletService {
   async getTransaction(transactionId: string): Promise<WalletTransaction> {
     const response = await apiClient.get<WalletTransaction>(
       `/wallet/transactions/${transactionId}`,
+      true,
+    );
+    return response.data!;
+  }
+
+  /**
+   * Create a wallet top-up: backend creates a Dodo payment and returns the
+   * hosted-checkout URL to open in the browser. After the user completes
+   * payment, Dodo's webhook credits the wallet asynchronously.
+   */
+  async createTopUp(params: {
+    amount: number;
+    currency?: string;
+    returnUrl?: string;
+  }): Promise<CreateTopUpResponse> {
+    const response = await apiClient.post<CreateTopUpResponse>(
+      "/wallet/top-up",
+      params,
       true,
     );
     return response.data!;

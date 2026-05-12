@@ -237,6 +237,56 @@ export default function Profile() {
                 </View>
               )}
 
+              {/* Premium Section */}
+              <View className="mb-6">
+                <Text className="text-white text-lg font-myMedium mb-4">
+                  Membership
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/subscription")}
+                  className={
+                    "rounded-[24px] p-5 flex-row items-center justify-between border " +
+                    (user?.isPremium
+                      ? "bg-[#10B981]/10 border-[#10B981]/30"
+                      : "bg-yellow-400/5 border-yellow-400/20")
+                  }
+                >
+                  <View className="flex-row items-center flex-1">
+                    <View
+                      className={
+                        "w-10 h-10 rounded-2xl items-center justify-center mr-4 " +
+                        (user?.isPremium
+                          ? "bg-[#10B981]/20"
+                          : "bg-yellow-400/10")
+                      }
+                    >
+                      <Ionicons
+                        name={user?.isPremium ? "checkmark-circle" : "diamond"}
+                        size={20}
+                        color={user?.isPremium ? "#10B981" : "#FACC15"}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-white text-base font-myMedium">
+                        {user?.isPremium
+                          ? "NexaPay Premium · Active"
+                          : "Upgrade to Premium"}
+                      </Text>
+                      <Text className="text-zinc-500 text-xs font-myRegular mt-0.5">
+                        {user?.isPremium
+                          ? "Higher daily limits unlocked"
+                          : "₹10,000 / $2,000 daily limit"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="#71717A"
+                  />
+                </TouchableOpacity>
+              </View>
+
               {/* Withdrawal Section */}
               <View className="mb-6">
                 <Text className="text-white text-lg font-myMedium mb-4">

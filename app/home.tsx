@@ -365,6 +365,7 @@ export default function HomeScreen() {
                 userName={user?.name}
                 userUsername={user?.username}
                 onViewBalancePress={() => setIsPasswordModalVisible(true)}
+                onAddMoneyPress={() => router.push("/add-money")}
               />
 
               {address ? (
